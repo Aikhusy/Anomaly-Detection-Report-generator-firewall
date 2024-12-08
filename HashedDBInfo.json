@@ -1,0 +1,10 @@
+[
+    {
+        "id": "DB21",
+        "dbName": "SQLSERVER"
+    },
+    {
+        "id": "DB22",
+        "dbName": "MYSQL"
+    }
+]
