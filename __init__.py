@@ -1,3 +1,3 @@
 from DBConnect import GlobalHandler as DBConnect 
 
-print(DBConnect())
+print("dbCOnnect",DBConnect())

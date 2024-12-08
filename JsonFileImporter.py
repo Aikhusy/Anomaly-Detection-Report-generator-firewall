@@ -29,19 +29,18 @@ def RelativePathJsonFileImporter(path):
 
 def JsonPathImporterHandler(path):
     
-    if os.path.isabs(path):
-        result = AbsolutePathJsonFileImporter(path)
-        if isinstance(result, dict):  
-            return result
-        else:  
-            return f"AbsolutePath Error: {result}"
-    else:
-        
-        result = RelativePathJsonFileImporter(path)
-        if isinstance(result, dict):  
-            return result
-        else:  
-            return f"RelativePath Error: {result}"
+    result = AbsolutePathJsonFileImporter(path) 
+    result2 = RelativePathJsonFileImporter(path)
+
+    if isinstance(result, (dict, list)):  
+        return result
+    
+    if isinstance(result2, (dict, list)):  
+        return result2
+    
+    return "Error: Not a valid relative or absolute path"
+
+
         
 def GlobalHandler(path):
-    JsonPathImporterHandler(path)
+    return JsonPathImporterHandler(path)
