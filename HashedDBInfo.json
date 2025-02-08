@@ -1,10 +1,12 @@
-[
-    {
-        "id": "DB21",
-        "dbName": "SQLSERVER"
-    },
-    {
-        "id": "DB22",
-        "dbName": "MYSQL"
-    }
-]
+{
+    "Driver": "ODBC Driver 17 for SQL Server",
+    "Server": "DESKTOP-E5QF6IJ",
+    "Database": "dbo_checkpoint_firewall",
+    "Trusted_Connection": "no",
+    "UID":"sa",
+    "PWD":"abcde1234",
+    "Encrypt":"no",
+    "TrustServerCertificate":"no"
+    
+}
+  
