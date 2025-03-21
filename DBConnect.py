@@ -1,13 +1,13 @@
 import pyodbc
+import matplotlib.pyplot as plt
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.platypus import Image
 from JsonFileImporter import GlobalHandler as JsonFileImporter
 
-
 def GetDBData():
-    data=JsonFileImporter("HashedDBInfo.json")
-    if isinstance(data, (dict, list)):  
-        return data
-    else:  
-        return 0
+    data = JsonFileImporter("HashedDBInfo.json")
+    return data if isinstance(data, (dict, list)) else 0
 
 def GetDBType():
     try:
@@ -19,6 +19,7 @@ def GetDBType():
         return f"Unexpected Error: {str(e)}"
 
 def Connect():
+    """Fungsi untuk mendapatkan koneksi ke database."""
     connection_data = GetDBType()
     if isinstance(connection_data, dict):
         try:
@@ -31,16 +32,84 @@ def Connect():
                 f"Encrypt={connection_data['Encrypt']};"
                 f"TrustServerCertificate={connection_data['TrustServerCertificate']};"
             )
-            conn = pyodbc.connect(connection_string)
-            print("Koneksi ke SQL Server berhasil!")
-            conn.close()
-            return connection_string
-        except KeyError as e:
-            return f"Error: Missing key {str(e)} in the database config."
+            return pyodbc.connect(connection_string)
         except Exception as e:
             return f"Unexpected Error: {str(e)}"
     else:
         return "Invalid database configuration format."
 
+def FetchData():
+    """Mengambil 5 data terakhir dan 100 data terakhir untuk grafik."""
+    conn = Connect()
+    if isinstance(conn, str):
+        return conn  # Return error message if connection fails
+    
+    cursor = conn.cursor()
+    
+    # Ambil 5 data terakhir
+    cursor.execute("SELECT TOP 5 * FROM tbl_t_firewall_cpu ORDER BY id DESC")
+    last_5_data = cursor.fetchall()
+
+    # Ambil 100 data terakhir untuk grafik
+    cursor.execute("SELECT TOP 10 id, fw_cpu_usage_percentage FROM tbl_t_firewall_cpu ORDER BY id DESC")
+    last_100_data = cursor.fetchall()
+
+    conn.close()
+    return last_5_data, last_100_data
+
+def GenerateGraph(last_100_data, graph_path="cpu_usage_graph.png"):
+    """Membuat grafik penggunaan CPU dari 100 data terakhir."""
+    ids = [row[0] for row in last_100_data]  # ID data
+    cpu_usage = [row[1] for row in last_100_data]  # Penggunaan CPU
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(ids[::-1], cpu_usage[::-1], marker='o', linestyle='-', color='b', label='CPU Usage')
+    plt.xlabel("Data ID")
+    plt.ylabel("CPU Usage (%)")
+    plt.title("Grafik Penggunaan CPU (100 Data Terakhir)")
+    plt.legend()
+    plt.grid()
+    
+    plt.savefig(graph_path)
+    plt.close()
+    return graph_path
+
+def ExportToPDF(filename="firewall_report.pdf"):
+    """Mengekspor 5 data terakhir dan grafik ke dalam PDF."""
+    last_5_data, last_100_data = FetchData()
+    
+    if isinstance(last_5_data, str):  # Jika terjadi error dalam pengambilan data
+        print(last_5_data)
+        return last_5_data
+
+    graph_path = GenerateGraph(last_100_data)
+
+    c = canvas.Canvas(filename, pagesize=letter)
+    width, height = letter
+
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(30, height - 30, "Laporan Penggunaan CPU Firewall")
+
+    # Menampilkan 5 Data Terakhir
+    c.setFont("Helvetica", 12)
+    y_position = height - 60
+    c.drawString(30, y_position, "5 Data Terbaru:")
+    y_position -= 20
+
+    for row in last_5_data:
+        c.drawString(30, y_position, str(row))
+        y_position -= 20
+
+    # Menambahkan Grafik ke PDF
+    c.drawString(30, y_position - 20, "Grafik Penggunaan CPU:")
+    y_position -= 250  # Beri ruang untuk gambar
+
+    img = Image(graph_path, width=400, height=200)
+    img.drawOn(c, 100, y_position)
+
+    c.save()
+    print(f"PDF berhasil dibuat: {filename}")
+    return filename
+
 def GlobalHandler():
-    return Connect()
+    return ExportToPDF()

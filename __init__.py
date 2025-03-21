@@ -18,5 +18,3 @@ data["Message"] = "Konfigurasi database diperbarui"
 # Simpan kembali ke file JSON
 with open("config.json", "w") as file:
     json.dump(data, file, indent=4)
-
-print("Field logging berhasil ditambahkan.")
