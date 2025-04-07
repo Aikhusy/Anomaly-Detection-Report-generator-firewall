@@ -1,13 +1,5 @@
 {
-    "Driver": "ODBC Driver 17 for SQL Server",
-    "Server": "DESKTOP-E5QF6IJ",
-    "Database": "dbo_checkpoint_firewall",
-    "Trusted_Connection": "no",
-    "UID": "sa",
-    "PWD": "abcde1234",
-    "Encrypt": "no",
-    "TrustServerCertificate": "no",
-    "LogTime": "2025-03-21 11:02:31",
+    "LastExport": "2025-04-07 14:09:13",
     "LogLevel": "INFO",
     "Message": "Konfigurasi database diperbarui"
 }

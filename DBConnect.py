@@ -19,7 +19,6 @@ def GetDBType():
         return f"Unexpected Error: {str(e)}"
 
 def Connect():
-    """Fungsi untuk mendapatkan koneksi ke database."""
     connection_data = GetDBType()
     if isinstance(connection_data, dict):
         try:
@@ -38,24 +37,7 @@ def Connect():
     else:
         return "Invalid database configuration format."
 
-def FetchData():
-    """Mengambil 5 data terakhir dan 100 data terakhir untuk grafik."""
-    conn = Connect()
-    if isinstance(conn, str):
-        return conn  # Return error message if connection fails
-    
-    cursor = conn.cursor()
-    
-    # Ambil 5 data terakhir
-    cursor.execute("SELECT TOP 5 * FROM tbl_t_firewall_cpu ORDER BY id DESC")
-    last_5_data = cursor.fetchall()
 
-    # Ambil 100 data terakhir untuk grafik
-    cursor.execute("SELECT TOP 10 id, fw_cpu_usage_percentage FROM tbl_t_firewall_cpu ORDER BY id DESC")
-    last_100_data = cursor.fetchall()
-
-    conn.close()
-    return last_5_data, last_100_data
 
 def GenerateGraph(last_100_data, graph_path="cpu_usage_graph.png"):
     """Membuat grafik penggunaan CPU dari 100 data terakhir."""
@@ -111,5 +93,3 @@ def ExportToPDF(filename="firewall_report.pdf"):
     print(f"PDF berhasil dibuat: {filename}")
     return filename
 
-def GlobalHandler():
-    return ExportToPDF()
