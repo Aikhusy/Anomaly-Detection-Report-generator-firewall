@@ -4,6 +4,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image, Paragraph, Spacer
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
+import datetime
 
 def FetchData():
     """Mengambil 5 data terakhir dan 100 data terakhir untuk grafik."""
@@ -38,7 +39,7 @@ def GenerateGraph(last_100_data, graph_path="cpu_usage_graph.png"):
     plt.close()
     return graph_path
 
-def ExportToPDF(filename="firewall_report.pdf"):
+def ExportToPDF(filename="firewall_report.pdf",time=datetime.datetime.now()):
     """Mengekspor 5 data terakhir dan grafik ke dalam PDF dalam bentuk tabel."""
     last_5_data, last_100_data = FetchData()
     
@@ -47,6 +48,12 @@ def ExportToPDF(filename="firewall_report.pdf"):
         return last_5_data
 
     graph_path = GenerateGraph(last_100_data)
+
+    if time is None:
+        time = datetime.datetime.now()
+    
+    # Format waktu sebagai string jika perlu
+    time_str = time.strftime("%d-%m-%Y %H:%M:%S")
 
     # Setup dokumen
     doc = SimpleDocTemplate(filename, pagesize=letter)
@@ -57,11 +64,18 @@ def ExportToPDF(filename="firewall_report.pdf"):
     elements.append(title)
     elements.append(Spacer(1, 12))
 
+    
+
+    subtitle = Paragraph(time_str, styles["Heading2"])
+    elements.append(subtitle)
+    elements.append(Spacer(1, 6))
+
     # Tambahkan tabel untuk 5 data terakhir
     subtitle = Paragraph("5 Data Terbaru:", styles["Heading2"])
     elements.append(subtitle)
     elements.append(Spacer(1, 6))
 
+    
     # Menambahkan header kolom (opsional, tergantung isi tabelmu)
     header = ["ID", "fk_m_firewall", "cpu_usage_percentage", "waktu"]  # Sesuaikan nama kolom dengan yang kamu miliki
     data = [header] + [list(row) for row in last_5_data]
