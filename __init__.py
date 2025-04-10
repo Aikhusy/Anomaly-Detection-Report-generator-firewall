@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from Process import ExportToPDF as export
-from reportlab.lib.styles import getSampleStyleSheet
+
 
 
 def update_config(log_level="INFO", message="Konfigurasi database diperbarui"):
