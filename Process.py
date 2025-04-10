@@ -69,13 +69,14 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
     styleH2 = styles["Heading2"]
 
     inputs = {
+        "sitename": "BRCG01",
+        "startdate": "2025-01-01",
+        "enddate": "2025-04-01",
+        "exportdate": "2025-04-10",
+        "totalfw": 5,
         "month": "April",
         "year": "2025",
-        "sitename": "BRCG01",
-        "startdate": "01-04-2025",
-        "enddate": "07-04-2025",
-        "exportdate": "10-04-2025",
-        "totalfw": 3
+        "image_path": "logo.png"  # sesuaikan path ke gambar
     }
 
     DocumentHeader(elements,inputs)
