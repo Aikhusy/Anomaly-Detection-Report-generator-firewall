@@ -39,7 +39,7 @@ def Header(inputs, elements):
         ('FONTNAME', (0, 0), (-1, -1), 'TimesNewRoman'),
         ('FONTSIZE', (0, 0), (-1, -1), 14),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('GRID', (0, 0), (-1, -1), 1, colors.white),
     ]))
 
     # Gabung Logo dan Teks
