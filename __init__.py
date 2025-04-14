@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from Process import ExportToPDF as export
-
+import tkinter as tk
 
 
 def update_config(log_level="INFO", message="Konfigurasi database diperbarui"):
@@ -23,9 +23,14 @@ def update_config(log_level="INFO", message="Konfigurasi database diperbarui"):
 
 
 def main():
-    """Fungsi utama untuk menjalankan proses export dan update konfigurasi."""
-    print("Memulai proses export ke PDF...")
-    export()
+    root = tk.Tk()
+    root.title("Aplikasi Tkinter Sederhana")
+    root.geometry("300x100")
+
+    tombol = tk.Button(root, text="Klik Saya", command=export)
+    tombol.pack(pady=20)
+
+    root.mainloop()
     update_config()
 
 
