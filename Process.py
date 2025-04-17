@@ -32,10 +32,16 @@ def FetchData():
     counted_rows = cursor.fetchall()
 
     query = """
-        SELECT TOP 100 current_time, days_uptime, uptime, number_of_user, 
-                   load_avg_1, load_avg_5, load_avg_15
-            FROM tbl_t_uptime
-            ORDER BY created_at DESC
+        SELECT TOP 100 
+            fw_days_uptime, 
+            fw_number_of_users, 
+            fw_load_avg_1_min, 
+            fw_load_avg_5_min, 
+            fw_load_avg_15_min, 
+            created_at
+        FROM tbl_t_firewall_uptime
+        WHERE id = 2
+        ORDER BY created_at DESC
     
     """
     cursor.execute(query)
@@ -85,7 +91,7 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
         time = datetime.datetime.now()
 
     dataAnomaly = UptimeAnomaly(uptime)
-
+    print(dataAnomaly)
     doc = SimpleDocTemplate(filename, pagesize=letter)
     elements = []
     

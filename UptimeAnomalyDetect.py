@@ -33,8 +33,8 @@ def GlobalHandler(uptime_data, contamination=0.05):
         
         # Convert data to DataFrame
         logger.info("Memproses data uptime...")
-        column_names = ['current_time', 'days_uptime', 'uptime', 'number_of_user', 
-                        'load_avg_1', 'load_avg_5', 'load_avg_15']
+        column_names = ['fw_days_uptime', 'fw_number_of_users', 
+                   'fw_load_avg_1','fw_load_avg_5', 'fw_load_avg_15', 'created_at']
         
         df = pd.DataFrame(uptime_data, columns=column_names)
         
@@ -53,12 +53,12 @@ def GlobalHandler(uptime_data, contamination=0.05):
         
         # Preprocess data
         # Convert current_time to datetime if it's not already
-        if not pd.api.types.is_datetime64_any_dtype(df['current_time']):
-            df['current_time'] = pd.to_datetime(df['current_time'])
+        if not pd.api.types.is_datetime64_any_dtype(df['created_at']):
+            df['created_at'] = pd.to_datetime(df['created_at'])
         
         # Select only numerical features for anomaly detection
-        features = ['days_uptime', 'uptime', 'number_of_user', 
-                   'load_avg_1', 'load_avg_5', 'load_avg_15']
+        features = ['fw_days_uptime', 'fw_number_of_users', 
+                   'fw_load_avg_1_min','fw_load_avg_5_min', 'fw_load_avg_15_min']
         X = df[features]
         
         # Handle missing values if any
@@ -90,7 +90,7 @@ def GlobalHandler(uptime_data, contamination=0.05):
         anomalies = anomalies.sort_values('anomaly_score', ascending=False)
         
         # Create visualizations
-        visualizations = create_visualizations(df, normal_data, anomalies)
+        # visualizations = create_visualizations(df, normal_data, anomalies)
         
         # Get feature importance
         feature_importance = get_feature_importance(df, anomalies, features)
@@ -114,7 +114,7 @@ def GlobalHandler(uptime_data, contamination=0.05):
             "anomalies": anomalies.to_dict('records') if not anomalies.empty else [],
             "feature_importance": feature_importance.to_dict('records') if len(feature_importance) > 0 else [],
             "insights": insights,
-            "visualizations": visualizations
+            # "visualizations": visualizations
         }
         
         return result
