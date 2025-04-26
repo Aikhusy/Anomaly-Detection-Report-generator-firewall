@@ -1,44 +1,37 @@
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import IsolationForest
+from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import io
 from reportlab.lib.utils import ImageReader
 import logging
 import time
+import traceback
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def GlobalHandler(uptime_data, contamination=0.05):
-    """
-    Deteksi anomali pada data uptime firewall menggunakan Isolation Forest.
-    
-    Parameters:
-    -----------
-    uptime_data : list of tuples
-        Data uptime dari query SQL yang berisi:
-        (current_time, days_uptime, uptime, number_of_user, load_avg_1, load_avg_5, load_avg_15)
-    contamination : float, default=0.05
-        Proporsi estimasi outlier dalam dataset
-    
-    Returns:
-    --------
-    dict
-        Hasil deteksi anomali dan visualisasi
-    """
+def GlobalHandler(uptime_data):
+    contamination=0.05
+
     try:
         start_time = time.time()
         
-        # Convert data to DataFrame
         logger.info("Memproses data uptime...")
-        column_names = ['current_time', 'days_uptime', 'uptime', 'number_of_user', 
-                        'load_avg_1', 'load_avg_5', 'load_avg_15']
+        column_names = ['fw_days_uptime', 'fw_number_of_users', 
+                   'fw_load_avg_1_min', 'fw_load_avg_5_min', 'fw_load_avg_15_min', 'created_at']
         
-        df = pd.DataFrame(uptime_data, columns=column_names)
+        # Convert pyodbc.Row objects to regular Python lists or tuples
+        data_list = [tuple(row) for row in uptime_data]
         
-        # Check if we have data
+        # Create DataFrame from the converted data
+        df = pd.DataFrame(data_list, columns=column_names)
+        
+        print(df.shape)
+
         if df.empty:
             logger.warning("Tidak ada data uptime yang ditemukan")
             return {
@@ -51,20 +44,27 @@ def GlobalHandler(uptime_data, contamination=0.05):
         
         logger.info(f"Memproses {len(df)} data uptime")
         
-        # Preprocess data
-        # Convert current_time to datetime if it's not already
-        if not pd.api.types.is_datetime64_any_dtype(df['current_time']):
-            df['current_time'] = pd.to_datetime(df['current_time'])
+        # Ensure created_at is datetime type
+        if not pd.api.types.is_datetime64_any_dtype(df['created_at']):
+            df['created_at'] = pd.to_datetime(df['created_at'])
         
-        # Select only numerical features for anomaly detection
-        features = ['days_uptime', 'uptime', 'number_of_user', 
-                   'load_avg_1', 'load_avg_5', 'load_avg_15']
+        # # Define features for anomaly detection
+        features = ['fw_days_uptime', 'fw_number_of_users', 
+                   'fw_load_avg_1_min', 'fw_load_avg_5_min', 'fw_load_avg_15_min']
+        
+        # # Extract features for detection
         X = df[features]
         
-        # Handle missing values if any
+        # # Handle missing values if any
         X = X.fillna(X.mean())
         
-        # Apply Isolation Forest
+        # # Optional: Normalize features to give them equal importance
+        # # Uncomment if features have widely different scales
+        # # scaler = StandardScaler()
+        # # X_scaled = scaler.fit_transform(X)
+        # # X = pd.DataFrame(X_scaled, columns=features)
+        
+        # # Apply Isolation Forest
         logger.info("Menjalankan algoritma Isolation Forest...")
         model = IsolationForest(
             contamination=contamination,
@@ -72,38 +72,38 @@ def GlobalHandler(uptime_data, contamination=0.05):
             n_jobs=-1  # Use all available cores
         )
         
-        # Train and predict
+        # # Fit and predict
         df['anomaly'] = model.fit_predict(X)
         
-        # Convert predictions: -1 for anomalies, 1 for normal data points
-        # Convert to boolean: True for anomalies, False for normal
+        # # Convert predictions: -1 for anomalies, 1 for normal data points
+        # # Convert to boolean: True for anomalies, False for normal
         df['anomaly'] = df['anomaly'] == -1
         
-        # Calculate anomaly score (higher score means more anomalous)
+        # # Calculate anomaly score (higher score means more anomalous)
         df['anomaly_score'] = -model.score_samples(X)
         
-        # Separate normal and anomaly data
+        # # Separate normal and anomaly data
         normal_data = df[~df['anomaly']].copy()
         anomalies = df[df['anomaly']].copy()
         
-        # Sort anomalies by score (highest first)
+        # # Sort anomalies by score (highest first)
         anomalies = anomalies.sort_values('anomaly_score', ascending=False)
         
-        # Create visualizations
+        # # Generate visualizations
         visualizations = create_visualizations(df, normal_data, anomalies)
         
-        # Get feature importance
+        # # Get feature importance
         feature_importance = get_feature_importance(df, anomalies, features)
         
-        # Get anomaly insights
+        # # Get anomaly insights
         insights = get_anomaly_insights(df, anomalies, features)
         
-        # Log execution time
+        # # Log execution time
         execution_time = time.time() - start_time
         logger.info(f"Deteksi anomali selesai dalam {execution_time:.2f} detik")
         logger.info(f"Ditemukan {len(anomalies)} anomali dari {len(df)} data")
         
-        # Prepare result
+        # # Prepare result
         result = {
             "status": "success",
             "execution_time": execution_time,
@@ -117,35 +117,31 @@ def GlobalHandler(uptime_data, contamination=0.05):
             "visualizations": visualizations
         }
         
-        return result
+        return 1
         
     except Exception as e:
-        logger.error(f"Error dalam deteksi anomali: {str(e)}")
+        tb = traceback.format_exc()
+        logger.error(f"Error dalam deteksi anomali: {str(e)}\n{tb}")
         return {
             "status": "error",
             "message": str(e),
+            "traceback": tb,
             "normal_data": None,
             "anomalies": None,
             "visualizations": None
         }
-
+    
 def get_feature_importance(df, anomalies, features):
     """
-    Analisis fitur yang paling berkontribusi pada anomali.
+    Calculate importance of each feature in identifying anomalies
     
-    Parameters:
-    -----------
-    df : DataFrame
-        DataFrame asli dengan semua data
-    anomalies : DataFrame
-        DataFrame yang hanya berisi anomali
-    features : list
-        Daftar nama fitur yang digunakan untuk deteksi anomali
+    Args:
+        df: Full DataFrame with anomaly column
+        anomalies: DataFrame containing only anomalies
+        features: List of feature column names
     
     Returns:
-    --------
-    DataFrame
-        Skor kepentingan fitur
+        DataFrame with feature importance scores
     """
     if anomalies.empty:
         return pd.DataFrame()
@@ -175,21 +171,15 @@ def get_feature_importance(df, anomalies, features):
 
 def get_anomaly_insights(df, anomalies, features):
     """
-    Menghasilkan insight dari anomali yang terdeteksi.
+    Generate insights about detected anomalies
     
-    Parameters:
-    -----------
-    df : DataFrame
-        DataFrame asli dengan semua data
-    anomalies : DataFrame
-        DataFrame yang hanya berisi anomali
-    features : list
-        Daftar nama fitur yang digunakan untuk deteksi anomali
+    Args:
+        df: Full DataFrame with anomaly column
+        anomalies: DataFrame containing only anomalies
+        features: List of feature column names
     
     Returns:
-    --------
-    dict
-        Wawasan tentang anomali
+        Dictionary with insights about anomalies
     """
     if anomalies.empty:
         return {"summary": "Tidak ditemukan anomali"}
@@ -224,13 +214,13 @@ def get_anomaly_insights(df, anomalies, features):
         }
     
     # Find the most severe anomaly time periods
-    if not anomalies.empty and 'current_time' in anomalies.columns:
+    if not anomalies.empty:
         top_anomalies = anomalies.sort_values('anomaly_score', ascending=False).head(3)
         insights["top_anomalies"] = []
         
         for _, row in top_anomalies.iterrows():
             anomaly_info = {
-                "time": row['current_time'].strftime("%Y-%m-%d %H:%M:%S") if hasattr(row['current_time'], 'strftime') else str(row['current_time']),
+                "time": row['created_at'].strftime("%Y-%m-%d %H:%M:%S") if hasattr(row['created_at'], 'strftime') else str(row['created_at']),
                 "score": row['anomaly_score'],
                 "key_metrics": {}
             }
@@ -258,35 +248,29 @@ def get_anomaly_insights(df, anomalies, features):
 
 def create_visualizations(df, normal_data, anomalies):
     """
-    Membuat visualisasi untuk data normal dan anomali.
+    Create visualization plots for uptime data analysis
     
-    Parameters:
-    -----------
-    df : DataFrame
-        DataFrame lengkap dengan kolom anomaly
-    normal_data : DataFrame
-        Data yang diklasifikasikan sebagai normal
-    anomalies : DataFrame
-        Data yang diklasifikasikan sebagai anomali
+    Args:
+        df: Full DataFrame with anomaly column
+        normal_data: DataFrame containing only normal points
+        anomalies: DataFrame containing only anomalies
     
     Returns:
-    --------
-    dict
-        Dictionary berisi objek ImageReader dari visualisasi
+        Dictionary with visualization objects
     """
     visualizations = {}
     
     try:
         # Time series plot of load averages with anomalies
         plt.figure(figsize=(10, 6))
-        plt.plot(normal_data['current_time'], normal_data['load_avg_1'], 'b.', label='Normal 1 min', alpha=0.5)
-        plt.plot(normal_data['current_time'], normal_data['load_avg_5'], 'g.', label='Normal 5 min', alpha=0.5)
-        plt.plot(normal_data['current_time'], normal_data['load_avg_15'], 'c.', label='Normal 15 min', alpha=0.5)
+        plt.plot(normal_data['created_at'], normal_data['fw_load_avg_1_min'], 'b.', label='Normal 1 min', alpha=0.5)
+        plt.plot(normal_data['created_at'], normal_data['fw_load_avg_5_min'], 'g.', label='Normal 5 min', alpha=0.5)
+        plt.plot(normal_data['created_at'], normal_data['fw_load_avg_15_min'], 'c.', label='Normal 15 min', alpha=0.5)
         
         if not anomalies.empty:
-            plt.plot(anomalies['current_time'], anomalies['load_avg_1'], 'ro', label='Anomali 1 min')
-            plt.plot(anomalies['current_time'], anomalies['load_avg_5'], 'mo', label='Anomali 5 min')
-            plt.plot(anomalies['current_time'], anomalies['load_avg_15'], 'yo', label='Anomali 15 min')
+            plt.plot(anomalies['created_at'], anomalies['fw_load_avg_1_min'], 'ro', label='Anomali 1 min')
+            plt.plot(anomalies['created_at'], anomalies['fw_load_avg_5_min'], 'mo', label='Anomali 5 min')
+            plt.plot(anomalies['created_at'], anomalies['fw_load_avg_15_min'], 'yo', label='Anomali 15 min')
         
         plt.title('Load Average dengan Deteksi Anomali')
         plt.ylabel('Load Average')
@@ -305,10 +289,10 @@ def create_visualizations(df, normal_data, anomalies):
         
         # Number of users plot
         plt.figure(figsize=(10, 6))
-        plt.plot(normal_data['current_time'], normal_data['number_of_user'], 'b.', label='Normal', alpha=0.5)
+        plt.plot(normal_data['created_at'], normal_data['fw_number_of_users'], 'b.', label='Normal', alpha=0.5)
         
         if not anomalies.empty:
-            plt.plot(anomalies['current_time'], anomalies['number_of_user'], 'ro', label='Anomali')
+            plt.plot(anomalies['created_at'], anomalies['fw_number_of_users'], 'ro', label='Anomali')
         
         plt.title('Jumlah Pengguna dengan Deteksi Anomali')
         plt.ylabel('Jumlah Pengguna')
@@ -327,13 +311,13 @@ def create_visualizations(df, normal_data, anomalies):
         
         # Uptime plot
         plt.figure(figsize=(10, 6))
-        plt.plot(normal_data['current_time'], normal_data['uptime'], 'b.', label='Normal', alpha=0.5)
+        plt.plot(normal_data['created_at'], normal_data['fw_days_uptime'], 'b.', label='Normal', alpha=0.5)
         
         if not anomalies.empty:
-            plt.plot(anomalies['current_time'], anomalies['uptime'], 'ro', label='Anomali')
+            plt.plot(anomalies['created_at'], anomalies['fw_days_uptime'], 'ro', label='Anomali')
         
         plt.title('Uptime dengan Deteksi Anomali')
-        plt.ylabel('Uptime (detik)')
+        plt.ylabel('Uptime (hari)')
         plt.xlabel('Waktu')
         plt.legend()
         plt.grid(True, alpha=0.3)
@@ -349,11 +333,11 @@ def create_visualizations(df, normal_data, anomalies):
         
         # Create scatter plot of load_avg vs number_of_users
         plt.figure(figsize=(10, 6))
-        plt.scatter(normal_data['load_avg_5'], normal_data['number_of_user'], 
+        plt.scatter(normal_data['fw_load_avg_5_min'], normal_data['fw_number_of_users'], 
                    c='blue', label='Normal', alpha=0.5)
         
         if not anomalies.empty:
-            plt.scatter(anomalies['load_avg_5'], anomalies['number_of_user'], 
+            plt.scatter(anomalies['fw_load_avg_5_min'], anomalies['fw_number_of_users'], 
                         c='red', label='Anomali')
         
         plt.title('Load Average vs Jumlah Pengguna')
@@ -371,7 +355,39 @@ def create_visualizations(df, normal_data, anomalies):
         visualizations['scatter_plot'] = img
         plt.close()
         
+        # Add 3D visualization
+        if not anomalies.empty and len(df) > 10:
+            fig = plt.figure(figsize=(10, 8))
+            ax = fig.add_subplot(111, projection='3d')
+            
+            # Plot normal data
+            ax.scatter(normal_data['fw_load_avg_1_min'], 
+                       normal_data['fw_load_avg_5_min'], 
+                       normal_data['fw_number_of_users'], 
+                       c='blue', marker='o', label='Normal', alpha=0.6)
+            
+            # Plot anomalies
+            ax.scatter(anomalies['fw_load_avg_1_min'], 
+                       anomalies['fw_load_avg_5_min'], 
+                       anomalies['fw_number_of_users'], 
+                       c='red', marker='*', s=100, label='Anomali')
+            
+            ax.set_xlabel('Load Avg (1 min)')
+            ax.set_ylabel('Load Avg (5 min)')
+            ax.set_zlabel('Jumlah Pengguna')
+            ax.set_title('Visualisasi 3D Anomali')
+            ax.legend()
+            
+            # Save figure to buffer
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png', dpi=100)
+            buf.seek(0)
+            img = ImageReader(buf)
+            visualizations['3d_plot'] = img
+            plt.close()
+        
     except Exception as e:
-        logger.error(f"Error dalam pembuatan visualisasi: {str(e)}")
+        tb = traceback.format_exc()
+        logger.error(f"Error dalam pembuatan visualisasi: {str(e)}\n{tb}")
         
     return visualizations
