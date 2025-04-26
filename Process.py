@@ -7,13 +7,14 @@ from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Image,
     Paragraph, Spacer
 )
+import pandas as pd
 from reportlab.lib import colors
 from DocumentHeader import GlobalHandler as DocumentHeader
 from DocumentGeneral import GlobalHandler as DocumentGeneral
 from UptimeAnomalyDetect import GlobalHandler as UptimeAnomaly
 
 def FetchData():
-    """Mengambil 5 data terakhir dan 100 data terakhir untuk grafik."""
+
     conn = Connect()
     if isinstance(conn, str):
         return conn
@@ -32,7 +33,7 @@ def FetchData():
     counted_rows = cursor.fetchall()
 
     query = """
-        SELECT TOP 100 
+        SELECT TOP 20 
             fw_days_uptime, 
             fw_number_of_users, 
             fw_load_avg_1_min, 
@@ -40,7 +41,7 @@ def FetchData():
             fw_load_avg_15_min, 
             created_at
         FROM tbl_t_firewall_uptime
-        WHERE id = 2
+        WHERE fk_m_firewall = 1
         ORDER BY created_at DESC
     
     """
@@ -79,11 +80,21 @@ def FetchData():
     return counted_rows,current_status, uptime
 
 def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
-   
-    counted_rows,current_status,uptime = FetchData()
+    counted_rows, current_status, uptime = FetchData()
 
-    datass={
-        "counted_rows" : counted_rows,
+    # uptime_columns = [
+    #     'fw_days_uptime', 
+    #     'fw_number_of_users', 
+    #     'fw_load_avg_1_min', 
+    #     'fw_load_avg_5_min', 
+    #     'fw_load_avg_15_min', 
+    #     'created_at'
+    # ]
+
+    # df_uptime = pd.DataFrame(uptime, columns=uptime_columns)
+
+    datass = {
+        "counted_rows": counted_rows,
         "current_status": current_status
     }
 
@@ -91,10 +102,10 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
         time = datetime.datetime.now()
 
     dataAnomaly = UptimeAnomaly(uptime)
-    print(dataAnomaly)
+
     doc = SimpleDocTemplate(filename, pagesize=letter)
     elements = []
-    
+
     styles = getSampleStyleSheet()
     styleN = styles["BodyText"]
     styleH1 = styles["Heading1"]
@@ -108,12 +119,13 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
         "totalfw": 5,
         "month": "April",
         "year": "2025",
-        "image_path": "logo.png"  
+        "image_path": "logo.png"
     }
 
-    print(datass["counted_rows"])
-    elements=DocumentHeader(elements,inputs)
-    elements=DocumentGeneral(elements,datass)
+    # print(datass["counted_rows"])
+
+    elements = DocumentHeader(elements, inputs)
+    elements = DocumentGeneral(elements, datass)
 
     doc.build(elements)
     print(f"PDF berhasil dibuat: {filename}")
