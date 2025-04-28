@@ -12,6 +12,7 @@ from reportlab.lib import colors
 from DocumentHeader import GlobalHandler as DocumentHeader
 from DocumentGeneral import GlobalHandler as DocumentGeneral
 from UptimeAnomalyDetect import GlobalHandler as UptimeAnomaly
+from DocumentAnomaly import GlobalHandler as DocumentAnomaly
 
 def FetchData():
 
@@ -102,7 +103,7 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
         time = datetime.datetime.now()
 
     dataAnomaly = UptimeAnomaly(uptime)
-
+    print( dataAnomaly["anomalies"] )
     doc = SimpleDocTemplate(filename, pagesize=letter)
     elements = []
 
@@ -126,7 +127,8 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
 
     elements = DocumentHeader(elements, inputs)
     elements = DocumentGeneral(elements, datass)
-
+    elements = DocumentAnomaly(elements,dataAnomaly["anomalies"])
+    
     doc.build(elements)
     print(f"PDF berhasil dibuat: {filename}")
     return filename

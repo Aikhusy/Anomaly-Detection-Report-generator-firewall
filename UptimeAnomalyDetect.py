@@ -117,7 +117,7 @@ def GlobalHandler(uptime_data):
             "visualizations": visualizations
         }
         
-        return 1
+        return result
         
     except Exception as e:
         tb = traceback.format_exc()
