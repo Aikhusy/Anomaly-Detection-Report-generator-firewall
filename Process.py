@@ -87,11 +87,41 @@ def FetchData():
                     tbl_m_firewall AS f  
                     ON cs.fk_m_firewall = f.id
             """
+            
             cursor.execute(query)
             current_status = cursor.fetchall()
             
             if not current_status:
                 print("Warning: No data retrieved for current_status")
+                
+            avg_uptime_query = """
+                            SELECT 
+                f.fw_name,
+                AVG(fu.fw_number_of_users) AS average_users,
+                AVG(fu.fw_load_avg_1_min) AS average_load_1min,
+                AVG(fu.fw_load_avg_5_min) AS average_load_5min,
+                AVG(fu.fw_load_avg_15_min) AS average_load_15min,
+                MIN(fu.fw_days_uptime) AS min_uptime,
+                MAX(fu.fw_days_uptime) AS max_uptime,
+                AVG(fu.fw_days_uptime) AS average_uptime,
+                COUNT(*) AS record_count,
+                MIN(fu.created_at) AS earliest_record,
+                MAX(fu.created_at) AS latest_record
+            FROM 
+                tbl_t_firewall_uptime AS fu
+            INNER JOIN 
+                tbl_m_firewall AS f ON fu.fk_m_firewall = f.id
+            WHERE 
+                fu.fk_m_firewall = 1  -- You can remove this line to get averages for all firewalls
+            GROUP BY 
+                f.fw_name
+            ORDER BY 
+                f.fw_name;
+            """
+            cursor.execute(avg_uptime_query)
+            avg_uptime_results = cursor.fetchall()
+            
+            # Query for highest and lowest uptime values per firewall
                 
         except Exception as e:
             print(f"Query execution error: {str(e)}")
@@ -105,7 +135,7 @@ def FetchData():
                 print(f"Error closing database connection: {str(close_err)}")
         
         # Return the fetched data
-        return counted_rows, current_status, uptime
+        return counted_rows, current_status, uptime, avg_uptime_results
     
     except Exception as e:
         print(f"Unexpected error in FetchData: {str(e)}")
@@ -142,8 +172,9 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
             return filename
         
         # Unpack the data if no error occurred
-        counted_rows, current_status, uptime = data_result
+        counted_rows, current_status, uptime, avg_uptime_results = data_result
         
+        print(avg_uptime_results)
         # Check if any required data is missing
         if not counted_rows or not current_status:
             # Create a warning report if data is incomplete

@@ -1,0 +1,11 @@
+{
+    "Driver": "ODBC Driver 17 for SQL Server",
+    "Server": "DESKTOP-OCM4CG8",
+    "Database": "dbo_checkpoint_firewall",
+    "Trusted_Connection": "no",
+    "UID":"sa",
+    "PWD":"abcde1234#",
+    "Encrypt":"no",
+    "TrustServerCertificate":"no"
+}
+  
