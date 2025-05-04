@@ -42,7 +42,7 @@ class LSTMAutoencoder:
         self.model = None
         self.scaler = MinMaxScaler()
         self.reconstruction_error_threshold = None
-        self.model_path = "uptime_lstm/model"
+        self.model_path = "uptime_lstm/model.keras"
         self.scaler_path = "uptime_lstm/scaler.pkl"
         self.threshold_path = "uptime_lstm/threshold.pkl"
     
@@ -277,7 +277,7 @@ def GlobalHandler(uptime_data):
         model = LSTMAutoencoder(sequence_length=sequence_length, threshold_percentile=95)
         
         # Check if model exists, if not train a new one
-        model_path = "uptime_lstm/model"
+        model_path = "uptime_lstm/model.keras"
         if os.path.exists(model_path):
             logger.info("Memuat model yang sudah ada...")
             model.load_saved_model()
@@ -315,7 +315,6 @@ def GlobalHandler(uptime_data):
         execution_time = time.time() - start_time
         logger.info(f"Deteksi anomali selesai dalam {execution_time:.2f} detik")
         logger.info(f"Ditemukan {len(anomalies)} anomali dari {len(df_with_anomalies)} data")
-        
         # Prepare result
         result = {
             "status": "success",
@@ -720,7 +719,7 @@ def FetchData():
                     fw_load_avg_15_min,  
                     created_at 
                 FROM tbl_t_firewall_uptime 
-                WHERE fk_m_firewall = 2 
+                WHERE fk_m_firewall = 1 
                 ORDER BY created_at DESC
             """
             cursor.execute(query)
