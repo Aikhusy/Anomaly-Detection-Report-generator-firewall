@@ -11,7 +11,7 @@ import os
 import pickle
 import json
 import pyodbc
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, Model, load_model
 from tensorflow.keras.layers import Input, LSTM, RepeatVector, TimeDistributed, Dense, Dropout
@@ -34,7 +34,7 @@ THRESHOLD_PATH = "LSTM_Model/uptime_lstm/threshold.pkl"
 
 # Variabel global
 g_model = None
-g_scaler = MinMaxScaler()
+g_scaler = RobustScaler()
 g_reconstruction_error_threshold = None
 
 def create_model(input_dim, sequence_length=SEQUENCE_LENGTH):

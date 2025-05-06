@@ -11,10 +11,12 @@ import os
 import pickle
 import json
 import pyodbc
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras.optimizers import Adam
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, Model, load_model
-from tensorflow.keras.layers import Input, LSTM, RepeatVector, TimeDistributed, Dense, Dropout
+from tensorflow.keras.layers import Input, LSTM, RepeatVector, TimeDistributed, Dense, Dropout, BatchNormalization
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
 # Configure logging
@@ -40,7 +42,7 @@ class LSTMAutoencoder:
         self.sequence_length = sequence_length
         self.threshold_percentile = threshold_percentile
         self.model = None
-        self.scaler = MinMaxScaler()
+        self.scaler = RobustScaler()
         self.reconstruction_error_threshold = None
         self.model_path = "uptime_lstm/model.keras"
         self.scaler_path = "uptime_lstm/scaler.pkl"
@@ -53,32 +55,57 @@ class LSTMAutoencoder:
         Args:
             input_dim: Dimensi input (jumlah fitur)
         """
-        # Definisi arsitektur model
-        # Encoder
         encoder_inputs = Input(shape=(self.sequence_length, input_dim))
-        encoder = LSTM(64, activation='relu', return_sequences=True)(encoder_inputs)
-        encoder = Dropout(0.2)(encoder)
+    
+        # Layer pertama - ditingkatkan menjadi 128 unit
+        encoder = LSTM(128, activation='relu', return_sequences=True)(encoder_inputs)
+        encoder = BatchNormalization()(encoder)  # Normalisasi untuk stabilitas training
+        encoder = Dropout(0.3)(encoder)  # Dropout ditingkatkan untuk mengurangi overfitting
+        
+        # Layer kedua - ditingkatkan menjadi 64 unit
+        encoder = LSTM(64, activation='relu', return_sequences=True)(encoder)
+        encoder = BatchNormalization()(encoder)
+        encoder = Dropout(0.3)(encoder)
+        
+        # Layer ketiga - baru, untuk meningkatkan kapasitas model
         encoder = LSTM(32, activation='relu', return_sequences=False)(encoder)
-        encoder = Dropout(0.2)(encoder)
+        encoder = BatchNormalization()(encoder)
+        encoder = Dropout(0.3)(encoder)
         
         # Representasi laten
-        # Ukuran bottleneck yang lebih kecil dari dimensi input untuk kompresi data
-        latent_dim = 16
-        latent_representation = Dense(latent_dim)(encoder)
+        # Bottleneck yang lebih optimal - tidak terlalu kecil untuk menghindari underfitting
+        latent_dim = max(8, input_dim // 4)  # Dinamis berdasarkan dimensi input
+        latent_representation = Dense(latent_dim, 
+                                    activation='relu',
+                                    kernel_regularizer=l2(1e-4))(encoder)  # Regularisasi L2
         
-        # Decoder
+        # Decoder - ditingkatkan dengan arsitektur simetris dengan encoder
         decoder = RepeatVector(self.sequence_length)(latent_representation)
+        
+        # Layer pertama decoder
         decoder = LSTM(32, activation='relu', return_sequences=True)(decoder)
-        decoder = Dropout(0.2)(decoder)
+        decoder = BatchNormalization()(decoder)
+        decoder = Dropout(0.3)(decoder)
+        
+        # Layer kedua decoder
         decoder = LSTM(64, activation='relu', return_sequences=True)(decoder)
-        decoder = Dropout(0.2)(decoder)
+        decoder = BatchNormalization()(decoder)
+        decoder = Dropout(0.3)(decoder)
+        
+        # Layer ketiga decoder
+        decoder = LSTM(128, activation='relu', return_sequences=True)(decoder)
+        decoder = BatchNormalization()(decoder)
+        decoder = Dropout(0.3)(decoder)
+        
+        # Output layer
         decoder_outputs = TimeDistributed(Dense(input_dim))(decoder)
         
         # Membuat model autoencoder
         self.model = Model(encoder_inputs, decoder_outputs)
         
-        # Compile model
-        self.model.compile(optimizer='adam', loss='mse')
+        # Compile model dengan optimizer yang lebih robust dan learning rate yang sesuai
+        optimizer = Adam(learning_rate=0.001, clipnorm=1.0)  # Menggunakan clipnorm untuk mencegah exploding gradients
+        self.model.compile(optimizer=optimizer, loss='mse')
         
         return self.model
     
