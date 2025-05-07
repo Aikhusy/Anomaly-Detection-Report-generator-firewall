@@ -50,50 +50,45 @@ class LSTMAutoencoder:
     
     def create_model(self, input_dim):
         """
-        Membuat arsitektur model LSTM Autoencoder
+        Membuat arsitektur model LSTM Autoencoder dengan perbaikan untuk mengurangi overfitting
+        dan meningkatkan performa deteksi anomali
         
         Args:
             input_dim: Dimensi input (jumlah fitur)
         """
+        
         encoder_inputs = Input(shape=(self.sequence_length, input_dim))
-    
-        # Layer pertama - ditingkatkan menjadi 128 unit
-        encoder = LSTM(128, activation='relu', return_sequences=True)(encoder_inputs)
-        encoder = BatchNormalization()(encoder)  # Normalisasi untuk stabilitas training
-        encoder = Dropout(0.3)(encoder)  # Dropout ditingkatkan untuk mengurangi overfitting
-        
-        # Layer kedua - ditingkatkan menjadi 64 unit
-        encoder = LSTM(64, activation='relu', return_sequences=True)(encoder)
+
+        # Layer pertama - dengan aktivasi tanh untuk LSTM
+        encoder = LSTM(96, activation='tanh', return_sequences=True, 
+                    recurrent_regularizer=l2(1e-5))(encoder_inputs)
         encoder = BatchNormalization()(encoder)
         encoder = Dropout(0.3)(encoder)
         
-        # Layer ketiga - baru, untuk meningkatkan kapasitas model
-        encoder = LSTM(32, activation='relu', return_sequences=False)(encoder)
+        # Layer kedua - dengan arsitektur yang sedikit lebih sederhana
+        encoder = LSTM(48, activation='tanh', return_sequences=False,
+                    recurrent_regularizer=l2(1e-4))(encoder)
         encoder = BatchNormalization()(encoder)
-        encoder = Dropout(0.3)(encoder)
+        encoder = Dropout(0.4)(encoder)  # Sedikit peningkatan dropout untuk mengurangi overfitting
         
-        # Representasi laten
-        # Bottleneck yang lebih optimal - tidak terlalu kecil untuk menghindari underfitting
-        latent_dim = max(8, input_dim // 4)  # Dinamis berdasarkan dimensi input
+        # Representasi laten dengan dimensi yang dinamis
+        latent_dim = max(8, input_dim // 3)  # Sedikit ditingkatkan untuk menghindari bottleneck yang terlalu ketat
         latent_representation = Dense(latent_dim, 
                                     activation='relu',
-                                    kernel_regularizer=l2(1e-4))(encoder)  # Regularisasi L2
+                                    kernel_regularizer=l2(1e-4))(encoder)
         
-        # Decoder - ditingkatkan dengan arsitektur simetris dengan encoder
+        # Decoder
         decoder = RepeatVector(self.sequence_length)(latent_representation)
         
-        # Layer pertama decoder
-        decoder = LSTM(32, activation='relu', return_sequences=True)(decoder)
+        # Layer pertama decoder dengan simetri ke encoder
+        decoder = LSTM(48, activation='tanh', return_sequences=True,
+                    recurrent_regularizer=l2(1e-4))(decoder)
         decoder = BatchNormalization()(decoder)
-        decoder = Dropout(0.3)(decoder)
+        decoder = Dropout(0.4)(decoder)
         
         # Layer kedua decoder
-        decoder = LSTM(64, activation='relu', return_sequences=True)(decoder)
-        decoder = BatchNormalization()(decoder)
-        decoder = Dropout(0.3)(decoder)
-        
-        # Layer ketiga decoder
-        decoder = LSTM(128, activation='relu', return_sequences=True)(decoder)
+        decoder = LSTM(96, activation='tanh', return_sequences=True,
+                    recurrent_regularizer=l2(1e-5))(decoder)
         decoder = BatchNormalization()(decoder)
         decoder = Dropout(0.3)(decoder)
         
@@ -103,8 +98,8 @@ class LSTMAutoencoder:
         # Membuat model autoencoder
         self.model = Model(encoder_inputs, decoder_outputs)
         
-        # Compile model dengan optimizer yang lebih robust dan learning rate yang sesuai
-        optimizer = Adam(learning_rate=0.001, clipnorm=1.0)  # Menggunakan clipnorm untuk mencegah exploding gradients
+        # Compile model dengan optimizer yang lebih robust
+        optimizer = Adam(learning_rate=0.001, clipnorm=1.0)
         self.model.compile(optimizer=optimizer, loss='mse')
         
         return self.model

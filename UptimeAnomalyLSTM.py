@@ -311,7 +311,7 @@ def GlobalHandler(uptime_data):
         
         # Sort anomalies by score (highest first)
         anomalies = anomalies.sort_values('anomaly_score', ascending=False)
-        
+        anomalies.to_csv('lstm_anomalies.csv', index=False)
         # Generate visualizations
         visualizations = create_visualizations(df_with_anomalies, normal_data, anomalies)
         

@@ -56,7 +56,7 @@ def FetchData():
                     created_at 
                 FROM tbl_t_firewall_uptime 
                 WHERE fk_m_firewall = 1 
-                ORDER BY created_at DESC
+                ORDER BY created_at ASC
             """
             cursor.execute(query)
             uptime = cursor.fetchall()
@@ -209,6 +209,7 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
             
             if uptime:
                 dataAnomaly = UptimeAnomaly(uptime)
+                print(dataAnomaly['anomalies'])
             else:
                 dataAnomaly = None
             
@@ -275,11 +276,11 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
             
             # Add anomaly data if available
             if dataAnomaly:
-                # If UptimeAnomaly returns additional elements, add them
-                # This is a placeholder - adjust based on how UptimeAnomaly actually works
+                print(dataAnomaly['anomalies'])
                 pass
             if lstmAnomaly:
                 print(lstmAnomaly["anomaly_count"])
+                print(lstmAnomaly['anomalies'])
                 pass
             doc.build(elements)
             print(f"PDF berhasil dibuat: {filename}")
