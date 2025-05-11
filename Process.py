@@ -12,7 +12,8 @@ from reportlab.lib import colors
 from DocumentHeader import GlobalHandler as DocumentHeader 
 from DocumentGeneral import GlobalHandler as DocumentGeneral 
 from UptimeAnomalyDetect import GlobalHandler as UptimeAnomaly 
-from UptimeAnomalyLSTM import GlobalHandler as UptimeLSTM
+from UptimeAnalysis import GlobalHandler as UptimeAnalysis
+# from UptimeAnomalyLSTM import GlobalHandler as UptimeLSTM
  
 def FetchData():
     try:
@@ -246,7 +247,7 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
         
         try:
             dataAnomaly = UptimeAnomaly(uptime)
-            lstmAnomaly = UptimeLSTM(uptime)
+            # lstmAnomaly = UptimeLSTM(uptime)
         except Exception as e:
             print(f"Warning: Failed to process uptime anomaly data: {str(e)}")
             dataAnomaly = None
@@ -273,15 +274,17 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
         try:
             elements = DocumentHeader(elements, inputs)
             elements = DocumentGeneral(elements, datass)
+            elements = UptimeAnalysis(elements=elements,uptime_data=uptime)
             
             # Add anomaly data if available
-            if dataAnomaly:
-                print(dataAnomaly['anomalies'])
-                pass
-            if lstmAnomaly:
-                print(lstmAnomaly["anomaly_count"])
-                print(lstmAnomaly['anomalies'])
-                pass
+            # if dataAnomaly:
+            #     print(dataAnomaly['anomalies'])
+            #     pass
+            # if lstmAnomaly:
+            #     print(lstmAnomaly["anomaly_count"])
+            #     print(lstmAnomaly['anomalies'])
+            #     pass
+
             doc.build(elements)
             print(f"PDF berhasil dibuat: {filename}")
             return filename
