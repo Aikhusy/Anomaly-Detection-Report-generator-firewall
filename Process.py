@@ -15,32 +15,52 @@ from Uptime.UptimeAnomalyDetect import GlobalHandler as UptimeAnomaly
 from Uptime.UptimeAnalysis import GlobalHandler as UptimeAnalysis
 from Memory.MemoryAnalysis import GlobalHandler as MemoryAnalysis
 # from UptimeAnomalyLSTM import GlobalHandler as UptimeLSTM
- 
-def FetchData():
+
+def FetchData(startdate, enddate, fk_m_firewall=None):
     try:
         conn = Connect()
         if isinstance(conn, str):
             print(f"Connection error: {conn}")
-            return {"error": f"Database connection failed: {conn}"}, None, None
+            return {"error": f"Database connection failed: {conn}"}, None, None, None, None
         
         cursor = conn.cursor()
         
-        # Initialize variables to store query results
         counted_rows = None
         current_status = None
         uptime = None
+        avg_uptime_results = None
         memory = None
+        
+        # Prepare date filter for SQL queries
+        date_filter = f"BETWEEN '{startdate}' AND '{enddate}'"
+        
+        # Prepare firewall filter clause
+        fw_filter = ""
+        fw_where_clause = ""
+        if fk_m_firewall is not None:
+            if isinstance(fk_m_firewall, list):
+                # Convert list to comma-separated string for IN clause
+                fw_ids = ','.join(map(str, fk_m_firewall))
+                fw_filter = f"AND fk_m_firewall IN ({fw_ids})"
+                fw_where_clause = f"WHERE fk_m_firewall IN ({fw_ids})"
+            else:
+                # Single firewall ID
+                fw_filter = f"AND fk_m_firewall = {fk_m_firewall}"
+                fw_where_clause = f"WHERE fk_m_firewall = {fk_m_firewall}"
         
         try:
             # Query 1: Get firewall row counts
-            query = """
+            query = f"""
                 SELECT f.fw_name, counts.total_row 
                 FROM ( 
                     SELECT fk_m_firewall, COUNT(*) AS total_row 
-                    FROM tbl_t_firewall_uptime 
+                    FROM tbl_t_firewall_uptime
+                    WHERE tbl_t_firewall_uptime.created_at  
+                    {date_filter}
+                    {fw_filter}
                     GROUP BY fk_m_firewall 
                 ) AS counts 
-                INNER JOIN tbl_m_firewall AS f ON counts.fk_m_firewall = f.id 
+                INNER JOIN tbl_m_firewall AS f ON counts.fk_m_firewall = f.id
             """
             cursor.execute(query)
             counted_rows = cursor.fetchall()
@@ -49,8 +69,8 @@ def FetchData():
                 print("Warning: No data retrieved for counted_rows")
             
             # Query 2: Get uptime data
-            query = """
-                SELECT TOP 200  
+            uptime_query = f"""
+                SELECT 
                     fw_days_uptime,  
                     fw_number_of_users,  
                     fw_load_avg_1_min,  
@@ -58,17 +78,19 @@ def FetchData():
                     fw_load_avg_15_min,  
                     created_at 
                 FROM tbl_t_firewall_uptime 
-                WHERE fk_m_firewall = 1 
+                WHERE created_at 
+                {date_filter}
+                {fw_filter}
                 ORDER BY created_at ASC
             """
-            cursor.execute(query)
+            cursor.execute(uptime_query)
             uptime = cursor.fetchall()
             
             if not uptime:
                 print("Warning: No data retrieved for uptime")
             
             # Query 3: Get current firewall status
-            query = """
+            status_query = f"""
                 SELECT  
                     f.fw_name, 
                     cs.uptime, 
@@ -90,42 +112,18 @@ def FetchData():
                 INNER JOIN  
                     tbl_m_firewall AS f  
                     ON cs.fk_m_firewall = f.id
+                {fw_where_clause}
             """
-            
-            cursor.execute(query)
+                           
+            cursor.execute(status_query)
             current_status = cursor.fetchall()
             
             if not current_status:
                 print("Warning: No data retrieved for current_status")
                 
-            avg_uptime_query = """
-                            SELECT 
-                f.fw_name,
-                AVG(fu.fw_number_of_users) AS average_users,
-                AVG(fu.fw_load_avg_1_min) AS average_load_1min,
-                AVG(fu.fw_load_avg_5_min) AS average_load_5min,
-                AVG(fu.fw_load_avg_15_min) AS average_load_15min,
-                MIN(fu.fw_days_uptime) AS min_uptime,
-                MAX(fu.fw_days_uptime) AS max_uptime,
-                AVG(fu.fw_days_uptime) AS average_uptime,
-                COUNT(*) AS record_count,
-                MIN(fu.created_at) AS earliest_record,
-                MAX(fu.created_at) AS latest_record
-            FROM 
-                tbl_t_firewall_uptime AS fu
-            INNER JOIN 
-                tbl_m_firewall AS f ON fu.fk_m_firewall = f.id
-            WHERE 
-                fu.fk_m_firewall = 1  -- You can remove this line to get averages for all firewalls
-            GROUP BY 
-                f.fw_name
-            ORDER BY 
-                f.fw_name;
-            """
-            cursor.execute(avg_uptime_query)
-            avg_uptime_results = cursor.fetchall()
             
-            query = """
+            # Query 5: Get memory data
+            memory_query = f"""
                 SELECT TOP 200  
                     mem_type,  
                     mem_total,  
@@ -136,16 +134,17 @@ def FetchData():
                     mem_available,  
                     created_at 
                 FROM tbl_t_firewall_memory
-                WHERE fk_m_firewall = 1 
+                WHERE tbl_t_firewall_memory.created_at 
+                {date_filter}
+                {fw_filter}
                 ORDER BY created_at ASC
             """
-            cursor.execute(query)
+            cursor.execute(memory_query)
             memory = cursor.fetchall()
-            # Query for highest and lowest uptime values per firewall
                 
         except Exception as e:
             print(f"Query execution error: {str(e)}")
-            return {"error": f"Query execution failed: {str(e)}"}, None, None
+            return {"error": f"Query execution failed: {str(e)}"}, None, None, None, None
         finally:
             # Ensure connection is closed regardless of success or exception
             try:
@@ -155,16 +154,42 @@ def FetchData():
                 print(f"Error closing database connection: {str(close_err)}")
         
         # Return the fetched data
-        return counted_rows, current_status, uptime, avg_uptime_results,memory
+        return counted_rows, current_status, uptime, avg_uptime_results, memory
     
     except Exception as e:
         print(f"Unexpected error in FetchData: {str(e)}")
-        return {"error": f"Data retrieval failed: {str(e)}"}, None, None
- 
-def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
+        return {"error": f"Data retrieval failed: {str(e)}"}, None, None, None, None
+    
+def ExportToPDF(
+    filename="firewall_report.pdf", 
+    report_time=None,
+    firewall_id=None,
+    site_name="BRCG01",
+    start_date="2025-01-01",
+    end_date=None,
+    month=None,
+    year=None,
+    logo_path="logo.png",
+    record_limit=200
+):
+
     try:
-        # Get data from database
-        data_result = FetchData()
+        # Set default report time if not provided
+        if report_time is None:
+            report_time = datetime.datetime.now()
+            
+        # Set default end date if not provided
+        if end_date is None:
+            end_date = report_time.strftime("%Y-%m-%d")
+            
+        # Set default month and year if not provided
+        if month is None:
+            month = report_time.strftime("%B")
+        if year is None:
+            year = report_time.strftime("%Y")
+            
+        # Get data from database with custom firewall filter
+        data_result = FetchData('2024-04-01', '2025-04-14', 1)
         
         # Check if an error occurred during data fetching
         if isinstance(data_result[0], dict) and "error" in data_result[0]:
@@ -184,16 +209,15 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
             elements.append(Spacer(1, 12))
             elements.append(Paragraph(f"Failed to generate report: {error_message}", styleN))
             elements.append(Spacer(1, 12))
-            elements.append(Paragraph(f"Report generation attempted on: {time.strftime('%Y-%m-%d %H:%M:%S')}", styleN))
+            elements.append(Paragraph(f"Report generation attempted on: {report_time.strftime('%Y-%m-%d %H:%M:%S')}", styleN))
             
             # Build the error report document
             doc.build(elements)
             print(f"Error report generated: {filename}")
             return filename
         
+        counted_rows, current_status, uptime, avg_uptime, memory = data_result
         # Unpack the data if no error occurred
-        counted_rows, current_status, uptime, avg_uptime_results, memory = data_result
-        
         
         # Check if any required data is missing
         if not counted_rows or not current_status:
@@ -218,7 +242,7 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
                 
             elements.append(Paragraph(warning_message, styleN))
             elements.append(Spacer(1, 12))
-            elements.append(Paragraph(f"Report generated on: {time.strftime('%Y-%m-%d %H:%M:%S')}", styleN))
+            elements.append(Paragraph(f"Report generated on: {report_time.strftime('%Y-%m-%d %H:%M:%S')}", styleN))
             
             # Continue with available data if any
             datass = {
@@ -227,20 +251,24 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
             }
             
             if uptime:
-                dataAnomaly = UptimeAnomaly(uptime)
-                print(dataAnomaly['anomalies'])
+                try:
+                    dataAnomaly = UptimeAnomaly(uptime)
+                    print(f"Found {len(dataAnomaly.get('anomalies', []))} anomalies")
+                except Exception as anomaly_err:
+                    print(f"Warning: Failed to process uptime anomaly data: {str(anomaly_err)}")
+                    dataAnomaly = None
             else:
                 dataAnomaly = None
             
             inputs = {
-                "sitename": "BRCG01",
-                "startdate": "2025-01-01",
-                "enddate": "2025-04-01",
-                "exportdate": "2025-04-10",
-                "totalfw": 5,
-                "month": "April",
-                "year": "2025",
-                "image_path": "logo.png"
+                "sitename": site_name,
+                "startdate": start_date,
+                "enddate": end_date,
+                "exportdate": report_time.strftime("%Y-%m-%d"),
+                "totalfw": len(counted_rows) if counted_rows else 0,
+                "month": month,
+                "year": year,
+                "image_path": logo_path
             }
             
             # Add available data sections
@@ -255,17 +283,15 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
             return filename
         
         # Process the data for the report if everything is available
-        if time is None:
-            time = datetime.datetime.now()
-            
         datass = {
             "counted_rows": counted_rows,
             "current_status": current_status
         }
         
         try:
-            dataAnomaly = UptimeAnomaly(uptime)
-            # lstmAnomaly = UptimeLSTM(uptime)
+            if uptime:
+                dataAnomaly = UptimeAnomaly(uptime)
+                # lstmAnomaly = UptimeLSTM(uptime)
         except Exception as e:
             print(f"Warning: Failed to process uptime anomaly data: {str(e)}")
             dataAnomaly = None
@@ -278,25 +304,32 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
         styleH1 = styles["Heading1"]
         styleH2 = styles["Heading2"]
         
+        # Count total firewalls from current_status data
+        total_firewalls = len(set([status[0] for status in current_status])) if current_status else 0
+        
         inputs = {
-            "sitename": "BRCG01",
-            "startdate": "2025-01-01",
-            "enddate": "2025-04-01",
-            "exportdate": "2025-04-10",
-            "totalfw": 5,
-            "month": "April",
-            "year": "2025",
-            "image_path": "logo.png"
+            "sitename": site_name,
+            "startdate": start_date,
+            "enddate": end_date,
+            "exportdate": report_time.strftime("%Y-%m-%d"),
+            "totalfw": total_firewalls,
+            "month": month,
+            "year": year,
+            "image_path": logo_path
         }
         
         try:
             elements = DocumentHeader(elements, inputs)
             elements = DocumentGeneral(elements, datass)
-            elements = UptimeAnalysis(elements=elements,uptime_data=uptime)
-            elements = MemoryAnalysis ( elements=elements, memory_data= memory)
+            
+            if uptime:
+                elements = UptimeAnalysis(elements=elements, uptime_data=uptime)
+                
+            if memory:
+                elements = MemoryAnalysis(elements=elements, memory_data=memory)
 
             doc.build(elements)
-            print(f"PDF berhasil dibuat: {filename}")
+            print(f"PDF successfully created: {filename}")
             return filename
             
         except Exception as e:
