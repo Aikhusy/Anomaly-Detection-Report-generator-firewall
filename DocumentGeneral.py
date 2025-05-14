@@ -62,13 +62,7 @@ def CountTable(elements, inputs):
     return elements 
 
 def CurrentStatus(elements, inputs):
-    """
-    inputs: list of tuple, contoh:
-    [
-        ('FW-JIEP03', '12h 5m', '100MB', '80MB', '2GB', '0', '75', '0', '0', 'master', 'active', 'valid', 'OK', 'HF_001'),
-        ...
-    ]
-    """
+
     page_width, _ = A4
 
     # Pisahkan menjadi 2 bagian

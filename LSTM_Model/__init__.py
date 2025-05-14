@@ -49,56 +49,40 @@ class LSTMAutoencoder:
         self.threshold_path = "uptime_lstm/threshold.pkl"
     
     def create_model(self, input_dim):
-        """
-        Membuat arsitektur model LSTM Autoencoder dengan perbaikan untuk mengurangi overfitting
-        dan meningkatkan performa deteksi anomali
-        
-        Args:
-            input_dim: Dimensi input (jumlah fitur)
-        """
-        
+
         encoder_inputs = Input(shape=(self.sequence_length, input_dim))
 
-        # Layer pertama - dengan aktivasi tanh untuk LSTM
         encoder = LSTM(96, activation='tanh', return_sequences=True, 
                     recurrent_regularizer=l2(1e-5))(encoder_inputs)
         encoder = BatchNormalization()(encoder)
         encoder = Dropout(0.3)(encoder)
         
-        # Layer kedua - dengan arsitektur yang sedikit lebih sederhana
         encoder = LSTM(48, activation='tanh', return_sequences=False,
                     recurrent_regularizer=l2(1e-4))(encoder)
         encoder = BatchNormalization()(encoder)
-        encoder = Dropout(0.4)(encoder)  # Sedikit peningkatan dropout untuk mengurangi overfitting
+        encoder = Dropout(0.4)(encoder)  
         
-        # Representasi laten dengan dimensi yang dinamis
-        latent_dim = max(8, input_dim // 3)  # Sedikit ditingkatkan untuk menghindari bottleneck yang terlalu ketat
+        latent_dim = max(8, input_dim // 3)  
         latent_representation = Dense(latent_dim, 
                                     activation='relu',
                                     kernel_regularizer=l2(1e-4))(encoder)
         
-        # Decoder
         decoder = RepeatVector(self.sequence_length)(latent_representation)
         
-        # Layer pertama decoder dengan simetri ke encoder
         decoder = LSTM(48, activation='tanh', return_sequences=True,
                     recurrent_regularizer=l2(1e-4))(decoder)
         decoder = BatchNormalization()(decoder)
         decoder = Dropout(0.4)(decoder)
         
-        # Layer kedua decoder
         decoder = LSTM(96, activation='tanh', return_sequences=True,
                     recurrent_regularizer=l2(1e-5))(decoder)
         decoder = BatchNormalization()(decoder)
         decoder = Dropout(0.3)(decoder)
         
-        # Output layer
         decoder_outputs = TimeDistributed(Dense(input_dim))(decoder)
         
-        # Membuat model autoencoder
         self.model = Model(encoder_inputs, decoder_outputs)
         
-        # Compile model dengan optimizer yang lebih robust
         optimizer = Adam(learning_rate=0.001, clipnorm=1.0)
         self.model.compile(optimizer=optimizer, loss='mse')
         

@@ -11,8 +11,9 @@ import pandas as pd
 from reportlab.lib import colors 
 from DocumentHeader import GlobalHandler as DocumentHeader 
 from DocumentGeneral import GlobalHandler as DocumentGeneral 
-from UptimeAnomalyDetect import GlobalHandler as UptimeAnomaly 
-from UptimeAnalysis import GlobalHandler as UptimeAnalysis
+from Uptime.UptimeAnomalyDetect import GlobalHandler as UptimeAnomaly 
+from Uptime.UptimeAnalysis import GlobalHandler as UptimeAnalysis
+from Memory.MemoryAnalysis import GlobalHandler as MemoryAnalysis
 # from UptimeAnomalyLSTM import GlobalHandler as UptimeLSTM
  
 def FetchData():
@@ -28,6 +29,7 @@ def FetchData():
         counted_rows = None
         current_status = None
         uptime = None
+        memory = None
         
         try:
             # Query 1: Get firewall row counts
@@ -123,6 +125,22 @@ def FetchData():
             cursor.execute(avg_uptime_query)
             avg_uptime_results = cursor.fetchall()
             
+            query = """
+                SELECT TOP 200  
+                    mem_type,  
+                    mem_total,  
+                    mem_used,  
+                    mem_free,  
+                    mem_shared,
+                    mem_cache,
+                    mem_available,  
+                    created_at 
+                FROM tbl_t_firewall_memory
+                WHERE fk_m_firewall = 1 
+                ORDER BY created_at ASC
+            """
+            cursor.execute(query)
+            memory = cursor.fetchall()
             # Query for highest and lowest uptime values per firewall
                 
         except Exception as e:
@@ -137,7 +155,7 @@ def FetchData():
                 print(f"Error closing database connection: {str(close_err)}")
         
         # Return the fetched data
-        return counted_rows, current_status, uptime, avg_uptime_results
+        return counted_rows, current_status, uptime, avg_uptime_results,memory
     
     except Exception as e:
         print(f"Unexpected error in FetchData: {str(e)}")
@@ -174,7 +192,7 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
             return filename
         
         # Unpack the data if no error occurred
-        counted_rows, current_status, uptime, avg_uptime_results = data_result
+        counted_rows, current_status, uptime, avg_uptime_results, memory = data_result
         
         
         # Check if any required data is missing
@@ -275,15 +293,7 @@ def ExportToPDF(filename="firewall_report.pdf", time=datetime.datetime.now()):
             elements = DocumentHeader(elements, inputs)
             elements = DocumentGeneral(elements, datass)
             elements = UptimeAnalysis(elements=elements,uptime_data=uptime)
-            
-            # Add anomaly data if available
-            # if dataAnomaly:
-            #     print(dataAnomaly['anomalies'])
-            #     pass
-            # if lstmAnomaly:
-            #     print(lstmAnomaly["anomaly_count"])
-            #     print(lstmAnomaly['anomalies'])
-            #     pass
+            elements = MemoryAnalysis ( elements=elements, memory_data= memory)
 
             doc.build(elements)
             print(f"PDF berhasil dibuat: {filename}")
