@@ -130,7 +130,7 @@ def plot_distribution(df):
     return img_data
 
 
-def DistributionPlot(elements, img_data):
+def DistributionPlot(elements, img_data,index):
     page_width, _ = A4
     
     # # Tambahkan judul untuk bagian plot
@@ -138,17 +138,30 @@ def DistributionPlot(elements, img_data):
     # elements.append(Spacer(1, 12))
     
     # Buat objek Image dari data gambar
-    img = Image(img_data, width=page_width*0.8, height=page_width*0.8)
-    
-    # Bungkus gambar dengan Table untuk mengatur posisi
-    outer_table = Table([[img]])
-    outer_table.setStyle(TableStyle([
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),  # Margin kiri
-        ('RIGHTPADDING', (0, 0), (-1, -1), -30),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-    ]))
+    if (index !=2):
+        img = Image(img_data, width=page_width*0.8, height=page_width*0.8)
+        
+        # Bungkus gambar dengan Table untuk mengatur posisi
+        outer_table = Table([[img]])
+        outer_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),  # Margin kiri
+            ('RIGHTPADDING', (0, 0), (-1, -1), -30),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ]))
+    else :
+        img = Image(img_data, width=page_width*0.8, height=page_width*0.4)
+        
+        # Bungkus gambar dengan Table untuk mengatur posisi
+        outer_table = Table([[img]])
+        outer_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),  # Margin kiri
+            ('RIGHTPADDING', (0, 0), (-1, -1), -30),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ]))
     
     elements.append(outer_table)
     elements.append(Spacer(1, 20))
@@ -292,55 +305,38 @@ def ConclusionTable(elements, df):
     
 
     def create_table(data):
-        # Lebar kolom
-        if len(data[0]) == 1:  # Judul
-            col_widths = [page_width]
-        else:  # Konten tabel
-            col_widths = [page_width, page_width*0.5]
-        
-        table = Table(data, colWidths=col_widths, hAlign='CENTER')
-        
+        if len(data[0]) == 1:
+            col_widths = [page_width * 0.2, page_width * 0.4]
+        else:
+            col_widths = [page_width * 0.2, page_width * 0.4]
+
+        table = Table(data, colWidths=col_widths, hAlign='LEFT')
         style = [
-            # Style untuk judul
-            ('SPAN', (0, 0), (-1, 0)),  # Span judul
+            ('SPAN', (0, 0), (-1, 0)),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
-            
-            # Style untuk header tabel
             ('BACKGROUND', (0, 1), (-1, 1), colors.lightgrey),
             ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
             ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 1), (-1, 1), 9),
-            
-            # Style untuk konten
             ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 2), (-1, -1), 9),
             ('ALIGN', (0, 2), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 2), (1, -1), 'CENTER'),
+            ('ALIGN', (1, 2), (1, -1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('GRID', (0, 1), (-1, -1), 1, colors.black),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ]
-        
         table.setStyle(TableStyle(style))
         return table
     
     # Bungkus dan beri margin kiri
-    def wrap_table(table):
-        outer_table = Table([[table]], colWidths=[page_width])
-        outer_table.setStyle(TableStyle([
-            ('LEFTPADDING', (0, 0), (-1, -1), 30),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 30),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        return outer_table
     
-    elements.append(wrap_table(create_table(data_1)))
+    elements.append(create_table(data_1))
     elements.append(Spacer(1, 15))
-    elements.append(wrap_table(create_table(data_2)))
+    elements.append(create_table(data_2))
     elements.append(Spacer(1, 15))
     
     return elements
@@ -372,12 +368,13 @@ def GlobalHandler(elements, uptime_data):
             ['fw_load_avg_15_min']
         ]
 
-        for group in page_groups:
+        for i, group in enumerate(page_groups):
             elements.append(PageBreak())
             img_data = plot_distribution(df, group)
-            elements = DistributionPlot(elements, img_data)
+            elements = DistributionPlot(elements, img_data, index=i)
 
         elements = ConclusionTable(elements, df)
+        
         return elements
 
     except Exception as e:

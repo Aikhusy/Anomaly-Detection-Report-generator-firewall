@@ -294,16 +294,12 @@ def Title(elements, word):
     return elements
 
 def MemoryConclusionTable(elements, df_mem, df_swap):
-    """
-    Menambahkan kesimpulan berdasarkan analisis data memori dalam bentuk tabel
-    """
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
-    
+
     page_width, _ = A4
-    
-    # Hitung statistik dari data RAM
+
     total_ram_gb = df_mem['mem_total'].iloc[0] / 1048576
     avg_used_ram_gb = df_mem['mem_used'].mean() / 1048576
     avg_used_ram_percent = (df_mem['mem_used'].mean() / df_mem['mem_total'].mean()) * 100
@@ -311,11 +307,8 @@ def MemoryConclusionTable(elements, df_mem, df_swap):
     peak_used_ram_percent = (df_mem['mem_used'].max() / df_mem['mem_total'].max()) * 100
     avg_available_ram_gb = df_mem['mem_available'].mean() / 1048576
     avg_cache_ram_gb = df_mem['mem_cache'].mean() / 1048576
-    
-    # Judul untuk tabel RAM
+
     title_ram = ["Kesimpulan Analisis RAM Memory"]
-    
-    # Data untuk tabel RAM
     data_ram = [title_ram]
     data_ram.append(["Parameter", "Nilai"])
     data_ram.append(["Total RAM", f"{total_ram_gb:.2f} GB"])
@@ -323,36 +316,30 @@ def MemoryConclusionTable(elements, df_mem, df_swap):
     data_ram.append(["Penggunaan RAM Tertinggi", f"{peak_used_ram_gb:.2f} GB ({peak_used_ram_percent:.2f}%)"])
     data_ram.append(["Rata-rata RAM Tersedia", f"{avg_available_ram_gb:.2f} GB"])
     data_ram.append(["Rata-rata Cache", f"{avg_cache_ram_gb:.2f} GB"])
-    
-    # Analisis RAM
+
     if avg_used_ram_percent > 80:
         ram_status = "KRITIS: Penggunaan RAM sangat tinggi, risiko sistem tidak stabil"
     elif avg_used_ram_percent > 60:
         ram_status = "PERHATIAN: Penggunaan RAM tinggi, pertimbangkan upgrade atau optimasi"
     else:
         ram_status = "NORMAL: Penggunaan RAM dalam batas aman"
-    
+
     data_ram.append(["Status RAM", ram_status])
-    
-    # Tabel untuk Swap jika tersedia
+
     if not df_swap.empty and df_swap['mem_total'].max() > 0:
         total_swap_gb = df_swap['mem_total'].iloc[0] / 1048576
         avg_used_swap_gb = df_swap['mem_used'].mean() / 1048576
         avg_used_swap_percent = (df_swap['mem_used'].mean() / df_swap['mem_total'].mean()) * 100
         peak_used_swap_gb = df_swap['mem_used'].max() / 1048576
         peak_used_swap_percent = (df_swap['mem_used'].max() / df_swap['mem_total'].max()) * 100
-        
-        # Judul untuk tabel Swap
+
         title_swap = ["Kesimpulan Analisis Swap Memory"]
-        
-        # Data untuk tabel Swap
         data_swap = [title_swap]
         data_swap.append(["Parameter", "Nilai"])
         data_swap.append(["Total Swap", f"{total_swap_gb:.2f} GB"])
         data_swap.append(["Rata-rata Penggunaan Swap", f"{avg_used_swap_gb:.2f} GB ({avg_used_swap_percent:.2f}%)"])
         data_swap.append(["Penggunaan Swap Tertinggi", f"{peak_used_swap_gb:.2f} GB ({peak_used_swap_percent:.2f}%)"])
-        
-        # Analisis Swap
+
         if avg_used_swap_percent > 50:
             swap_status = "KRITIS: Penggunaan Swap tinggi, kinerja sistem menurun signifikan"
         elif avg_used_swap_percent > 20:
@@ -361,25 +348,22 @@ def MemoryConclusionTable(elements, df_mem, df_swap):
             swap_status = "PERHATIAN RINGAN: Swap digunakan, monitor penggunaan RAM"
         else:
             swap_status = "NORMAL: Swap tidak digunakan"
-        
+
         data_swap.append(["Status Swap", swap_status])
-    
-    # Rekomendasi berdasarkan analisis keseluruhan
+
     title_rekomendasi = ["Rekomendasi"]
     data_rekomendasi = [title_rekomendasi]
     data_rekomendasi.append(["Aspek", "Rekomendasi"])
-    
-    # Rekomendasi RAM
+
     if avg_used_ram_percent > 80:
         ram_rekomendasi = "Segera tambah RAM atau optimasi penggunaan dengan mengurangi jumlah layanan atau aplikasi yang berjalan"
     elif avg_used_ram_percent > 60:
         ram_rekomendasi = "Monitor penggunaan RAM secara berkala, pertimbangkan upgrade jika tren penggunaan meningkat"
     else:
         ram_rekomendasi = "Penggunaan RAM optimal, tidak perlu tindakan khusus"
-    
+
     data_rekomendasi.append(["RAM", ram_rekomendasi])
-    
-    # Rekomendasi Swap jika tersedia
+
     if not df_swap.empty and df_swap['mem_total'].max() > 0:
         if avg_used_swap_percent > 20:
             swap_rekomendasi = "Tambah RAM fisik untuk mengurangi ketergantungan pada Swap"
@@ -387,42 +371,34 @@ def MemoryConclusionTable(elements, df_mem, df_swap):
             swap_rekomendasi = "Monitor penggunaan RAM dan Swap, identifikasi aplikasi yang banyak menggunakan memori"
         else:
             swap_rekomendasi = "Penggunaan Swap optimal, tidak perlu tindakan khusus"
-        
+
         data_rekomendasi.append(["Swap", swap_rekomendasi])
-    
-    # Rekomendasi Cache
+
     cache_to_ram_ratio = (avg_cache_ram_gb / total_ram_gb) * 100
     if cache_to_ram_ratio > 40:
         cache_rekomendasi = "Cache menggunakan porsi RAM yang besar, pertimbangkan untuk menyesuaikan parameter cache sistem"
     else:
         cache_rekomendasi = "Penggunaan cache sesuai ekspektasi"
-    
+
     data_rekomendasi.append(["Cache", cache_rekomendasi])
 
     def create_table(data):
-        # Lebar kolom
-        if len(data[0]) == 1:  # Judul
-            col_widths = [page_width]
-        else:  # Konten tabel
-            col_widths = [page_width*0.2, page_width*0.5]
-        
-        table = Table(data, colWidths=col_widths, hAlign='CENTER')
-        
+        if len(data[0]) == 1:
+            col_widths = [page_width * 0.2, page_width * 0.4]
+        else:
+            col_widths = [page_width * 0.2, page_width * 0.4]
+
+        table = Table(data, colWidths=col_widths, hAlign='LEFT')
         style = [
-            # Style untuk judul
-            ('SPAN', (0, 0), (-1, 0)),  # Span judul
+            ('SPAN', (0, 0), (-1, 0)),
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
-            
-            # Style untuk header tabel
             ('BACKGROUND', (0, 1), (-1, 1), colors.lightgrey),
             ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
             ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 1), (-1, 1), 9),
-            
-            # Style untuk konten
             ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 2), (-1, -1), 9),
             ('ALIGN', (0, 2), (0, -1), 'LEFT'),
@@ -431,32 +407,23 @@ def MemoryConclusionTable(elements, df_mem, df_swap):
             ('GRID', (0, 1), (-1, -1), 1, colors.black),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ]
-        
         table.setStyle(TableStyle(style))
         return table
-    
-    # Bungkus dan beri margin kiri
-    def wrap_table(table):
-        outer_table = Table([[table]], colWidths=[page_width])
-        outer_table.setStyle(TableStyle([
-            ('LEFTPADDING', (0, 0), (-1, -1), 30),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 30),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        return outer_table
-    
-    elements.append(wrap_table(create_table(data_ram)))
+
+
+    elements.append(create_table(data_ram))
     elements.append(Spacer(1, 15))
-    
+
     if not df_swap.empty and df_swap['mem_total'].max() > 0:
-        elements.append(wrap_table(create_table(data_swap)))
+        elements.append(create_table(data_swap))
         elements.append(Spacer(1, 15))
-    
-    elements.append(wrap_table(create_table(data_rekomendasi)))
+
+    elements.append(create_table(data_rekomendasi))
     elements.append(Spacer(1, 15))
-    
+
+
     return elements
+
 
 def ProcessMemoryData(memory_data):
     try:
@@ -494,6 +461,7 @@ def GlobalHandler(elements, memory_data):
         usage_img_data, distribution_img_data, df_mem, df_swap = ProcessMemoryData(memory_data)
         
         if usage_img_data and distribution_img_data and df_mem is not None:
+            elements.append(PageBreak())
             # Tambahkan plot penggunaan memori ke elements PDF
             elements = MemoryDistributionPlot(elements, usage_img_data, "Analisis Penggunaan Memori")
             
