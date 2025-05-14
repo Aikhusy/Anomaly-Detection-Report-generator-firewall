@@ -132,19 +132,12 @@ def plot_distribution(df):
 
 def DistributionPlot(elements, img_data,index):
     page_width, _ = A4
-    
-    # # Tambahkan judul untuk bagian plot
-    # elements = Title(elements, "Uptime")
-    # elements.append(Spacer(1, 12))
-    
-    # Buat objek Image dari data gambar
     if (index !=2):
         img = Image(img_data, width=page_width*0.8, height=page_width*0.8)
         
-        # Bungkus gambar dengan Table untuk mengatur posisi
         outer_table = Table([[img]])
         outer_table.setStyle(TableStyle([
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),  # Margin kiri
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),  
             ('RIGHTPADDING', (0, 0), (-1, -1), -30),
             ('TOPPADDING', (0, 0), (-1, -1), 0),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 0),

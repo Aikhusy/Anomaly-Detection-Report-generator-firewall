@@ -457,7 +457,6 @@ def ProcessMemoryData(memory_data):
 
 def GlobalHandler(elements, memory_data):
     try:
-        # Dapatkan data gambar dan DataFrame dari ProcessMemoryData
         usage_img_data, distribution_img_data, df_mem, df_swap = ProcessMemoryData(memory_data)
         
         if usage_img_data and distribution_img_data and df_mem is not None:
@@ -489,4 +488,3 @@ def GlobalHandler(elements, memory_data):
         elements.append(Spacer(1, 20))
         return elements
 
-# Contoh penggunaan di script utama:

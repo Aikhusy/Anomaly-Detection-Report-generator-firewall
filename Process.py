@@ -4,7 +4,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet 
 import datetime 
 from reportlab.platypus import ( 
-    SimpleDocTemplate, Table, TableStyle, Image, 
+    SimpleDocTemplate,
     Paragraph, Spacer 
 ) 
 import pandas as pd 
@@ -14,6 +14,9 @@ from DocumentGeneral import GlobalHandler as DocumentGeneral
 from Uptime.UptimeAnomalyDetect import GlobalHandler as UptimeAnomaly 
 from Uptime.UptimeAnalysis import GlobalHandler as UptimeAnalysis
 from Memory.MemoryAnalysis import GlobalHandler as MemoryAnalysis
+from Storage.StorageAnalysis import GlobalHandler as StorageAnalysis
+from Cpu.CpuAnalysis import GlobalHandler as CpuAnalysis
+from Network.NetworkAnalysis import GlobalHandler as NetworkAnalysis
 # from UptimeAnomalyLSTM import GlobalHandler as UptimeLSTM
 
 def FetchData(startdate, enddate, fk_m_firewall=None):
@@ -141,6 +144,55 @@ def FetchData(startdate, enddate, fk_m_firewall=None):
             """
             cursor.execute(memory_query)
             memory = cursor.fetchall()
+
+            # Query 6: Get Storage data
+            storage_query = f"""
+                SELECT 
+                fw_filesystem, fw_mounted_on, fw_total, 
+                fw_available, fw_used, fw_used_percentage,
+                created_at
+                FROM tbl_t_firewall_diskspace
+                WHERE created_at 
+                {date_filter}
+                {fw_filter}
+                ORDER BY created_at ASC
+            """
+            cursor.execute(storage_query)
+            storage = cursor.fetchall()
+
+            cpu_query = f"""
+                SELECT 
+                fw_cpu_user_time_percentage,
+                       fw_cpu_system_time_percentage,
+                       fw_cpu_idle_time_percentage,
+                       fw_cpu_usage_percentage,
+                       fw_cpu_queue_length,
+                       fw_cpu_interrupt_per_sec,
+                       fw_cpu_number,
+                       created_at
+                FROM tbl_t_firewall_cpu
+                WHERE created_at 
+                {date_filter}
+                {fw_filter}
+                ORDER BY created_at ASC
+            """
+            cursor.execute(cpu_query)
+            cpu = cursor.fetchall()
+
+            network_query = f"""
+                SELECT 
+                interface, hwaddr, inet_addr, bcast, mask, mtu, metric,
+                rx_packets, rx_errors, rx_dropped, rx_overruns, rx_frame,
+                tx_packets, tx_errors, tx_dropped, tx_overruns, tx_carrier,
+                collisions, txqueuelen, rx_bytes, tx_bytes, created_at
+                FROM tbl_t_firewall_rxtx
+                WHERE created_at 
+                {date_filter}
+                {fw_filter}
+                ORDER BY created_at ASC
+            """
+            cursor.execute(network_query)
+            network = cursor.fetchall()
                 
         except Exception as e:
             print(f"Query execution error: {str(e)}")
@@ -154,7 +206,7 @@ def FetchData(startdate, enddate, fk_m_firewall=None):
                 print(f"Error closing database connection: {str(close_err)}")
         
         # Return the fetched data
-        return counted_rows, current_status, uptime, avg_uptime_results, memory
+        return counted_rows, current_status, uptime, memory, storage, cpu, network
     
     except Exception as e:
         print(f"Unexpected error in FetchData: {str(e)}")
@@ -216,7 +268,7 @@ def ExportToPDF(
             print(f"Error report generated: {filename}")
             return filename
         
-        counted_rows, current_status, uptime, avg_uptime, memory = data_result
+        counted_rows, current_status, uptime, memory, storage, cpu, network = data_result
         # Unpack the data if no error occurred
         
         # Check if any required data is missing
@@ -328,6 +380,15 @@ def ExportToPDF(
             if memory:
                 elements = MemoryAnalysis(elements=elements, memory_data=memory)
 
+            if storage:
+                elements = StorageAnalysis(elements=elements,storage_data=storage)
+
+            if cpu :
+                elements = CpuAnalysis(elements=elements, cpu_data=cpu)
+            
+            if network :
+                elements = NetworkAnalysis(elements= elements, network_data=network)
+                
             doc.build(elements)
             print(f"PDF successfully created: {filename}")
             return filename
