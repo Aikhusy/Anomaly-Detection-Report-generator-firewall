@@ -17,6 +17,7 @@ from Memory.MemoryAnalysis import GlobalHandler as MemoryAnalysis
 from Storage.StorageAnalysis import GlobalHandler as StorageAnalysis
 from Cpu.CpuAnalysis import GlobalHandler as CpuAnalysis
 from Network.NetworkAnalysis import GlobalHandler as NetworkAnalysis
+from FailedAllocation.FailedMemoryAllocationAnalysis import GlobalHandler as FailedAlloc
 # from UptimeAnomalyLSTM import GlobalHandler as UptimeLSTM
 
 def FetchData(startdate, enddate, fk_m_firewall=None):
@@ -193,6 +194,20 @@ def FetchData(startdate, enddate, fk_m_firewall=None):
             """
             cursor.execute(network_query)
             network = cursor.fetchall()
+
+            failed_alloc_query = f"""
+                SELECT 
+                fw_total_memory, fw_peak_memory, 
+                fw_total_alloc, fw_failed_alloc, 
+                fw_total_free, fw_failed_free, created_at
+                FROM tbl_t_firewall_failed_memory
+                WHERE created_at 
+                {date_filter}
+                {fw_filter}
+                ORDER BY created_at ASC
+            """
+            cursor.execute(failed_alloc_query)
+            failed_alloc = cursor.fetchall()
                 
         except Exception as e:
             print(f"Query execution error: {str(e)}")
@@ -206,7 +221,7 @@ def FetchData(startdate, enddate, fk_m_firewall=None):
                 print(f"Error closing database connection: {str(close_err)}")
         
         # Return the fetched data
-        return counted_rows, current_status, uptime, memory, storage, cpu, network
+        return counted_rows, current_status, uptime, memory, storage, cpu, network, failed_alloc
     
     except Exception as e:
         print(f"Unexpected error in FetchData: {str(e)}")
@@ -268,7 +283,7 @@ def ExportToPDF(
             print(f"Error report generated: {filename}")
             return filename
         
-        counted_rows, current_status, uptime, memory, storage, cpu, network = data_result
+        counted_rows, current_status, uptime, memory, storage, cpu, network, failed_alloc  = data_result
         # Unpack the data if no error occurred
         
         # Check if any required data is missing
@@ -388,6 +403,9 @@ def ExportToPDF(
             
             if network :
                 elements = NetworkAnalysis(elements= elements, network_data=network)
+            
+            if failed_alloc : 
+                elements = FailedAlloc(elements= elements, alloc_data=failed_alloc)
                 
             doc.build(elements)
             print(f"PDF successfully created: {filename}")

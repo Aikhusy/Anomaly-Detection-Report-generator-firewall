@@ -10,7 +10,6 @@ from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image, Page
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch, cm
 from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -20,6 +19,10 @@ def plot_network_traffic(df):
     """
     Plot network traffic (RX/TX) for each interface over time
     """
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    import io
+    
     # Get unique interfaces
     interfaces = df['interface'].unique()
     
@@ -32,6 +35,7 @@ def plot_network_traffic(df):
     
     # Iterate through each interface and create a plot
     for i, interface in enumerate(interfaces):
+        # Create an explicit copy of the filtered DataFrame
         interface_df = df[df['interface'] == interface].copy()
         
         # Convert bytes to MB for better readability
@@ -42,9 +46,9 @@ def plot_network_traffic(df):
         interface_df['rx_rate'] = interface_df['rx_bytes_mb'].diff() / interface_df['created_at'].diff().dt.total_seconds()
         interface_df['tx_rate'] = interface_df['tx_bytes_mb'].diff() / interface_df['created_at'].diff().dt.total_seconds()
         
-        # Replace negative values and NaN with 0 (can happen if counters reset)
-        interface_df['rx_rate'].fillna(0, inplace=True)
-        interface_df['tx_rate'].fillna(0, inplace=True)
+        # Replace negative values and NaN with 0 (can happen if counters reset) - avoid inplace operations
+        interface_df['rx_rate'] = interface_df['rx_rate'].fillna(0)
+        interface_df['tx_rate'] = interface_df['tx_rate'].fillna(0)
         interface_df['rx_rate'] = interface_df['rx_rate'].clip(lower=0)
         interface_df['tx_rate'] = interface_df['tx_rate'].clip(lower=0)
         
