@@ -18,6 +18,8 @@ from Storage.StorageAnalysis import GlobalHandler as StorageAnalysis
 from Cpu.CpuAnalysis import GlobalHandler as CpuAnalysis
 from Network.NetworkAnalysis import GlobalHandler as NetworkAnalysis
 from FailedAllocation.FailedMemoryAllocationAnalysis import GlobalHandler as FailedAlloc
+from Raid.RaidAnalysis import GlobalRAIDHandler as RaidAnalysis
+from Capacity.CapacityOptimisation import GlobalHandler as CapacityOptimisation
 # from UptimeAnomalyLSTM import GlobalHandler as UptimeLSTM
 
 def FetchData(startdate, enddate, fk_m_firewall=None):
@@ -208,6 +210,44 @@ def FetchData(startdate, enddate, fk_m_firewall=None):
             """
             cursor.execute(failed_alloc_query)
             failed_alloc = cursor.fetchall()
+
+            raid_query = f"""
+            
+            WITH Ranked AS (
+                SELECT *,
+                    ROW_NUMBER() OVER (PARTITION BY raid_volume_id ORDER BY created_at ASC) AS rn
+                FROM tbl_t_firewall_raid
+                WHERE created_at 
+                    {date_filter}
+                    {fw_filter}
+            )
+            SELECT 
+                raid_volume_id,
+                raid_level,
+                raid_number_of_disks,
+                raid_size,
+                raid_state,
+                raid_flag
+            FROM Ranked
+            WHERE rn = 1
+            ORDER BY created_at ASC
+
+            """
+            cursor.execute(raid_query)
+            raid = cursor.fetchall()
+
+            capacity_optimisation_query = f"""
+                SELECT 
+                fw_hostname, fw_names, fw_id, fw_vals, 
+                fw_peaks, fw_slinks, fw_limit
+                FROM tbl_t_firewall_capacity_optimisation
+                WHERE created_at 
+                {date_filter}
+                {fw_filter}
+                ORDER BY created_at ASC
+            """
+            cursor.execute(capacity_optimisation_query)
+            capacity_optimisation = cursor.fetchall()
                 
         except Exception as e:
             print(f"Query execution error: {str(e)}")
@@ -221,7 +261,7 @@ def FetchData(startdate, enddate, fk_m_firewall=None):
                 print(f"Error closing database connection: {str(close_err)}")
         
         # Return the fetched data
-        return counted_rows, current_status, uptime, memory, storage, cpu, network, failed_alloc
+        return counted_rows, current_status, uptime, memory, storage, cpu, network, failed_alloc,raid, capacity_optimisation
     
     except Exception as e:
         print(f"Unexpected error in FetchData: {str(e)}")
@@ -283,9 +323,10 @@ def ExportToPDF(
             print(f"Error report generated: {filename}")
             return filename
         
-        counted_rows, current_status, uptime, memory, storage, cpu, network, failed_alloc  = data_result
+        counted_rows, current_status, uptime, memory, storage, cpu, network, failed_alloc, raid, capacity  = data_result
         # Unpack the data if no error occurred
-        
+        print ("capacity: ")
+        print (capacity)
         # Check if any required data is missing
         if not counted_rows or not current_status:
             # Create a warning report if data is incomplete
@@ -406,7 +447,13 @@ def ExportToPDF(
             
             if failed_alloc : 
                 elements = FailedAlloc(elements= elements, alloc_data=failed_alloc)
-                
+            
+            if raid:
+                elements = RaidAnalysis(elements= elements, raid_data=raid)
+            
+            if capacity:
+                elements = CapacityOptimisation(elements= elements, capacity_data=capacity)
+            
             doc.build(elements)
             print(f"PDF successfully created: {filename}")
             return filename
