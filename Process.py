@@ -20,6 +20,7 @@ from Network.NetworkAnalysis import GlobalHandler as NetworkAnalysis
 from FailedAllocation.FailedMemoryAllocationAnalysis import GlobalHandler as FailedAlloc
 from Raid.RaidAnalysis import GlobalRAIDHandler as RaidAnalysis
 from Capacity.CapacityOptimisation import GlobalHandler as CapacityOptimisation
+from Hotfix.Hotfix import HotfixAnalysisHandler as Hotfix
 # from UptimeAnomalyLSTM import GlobalHandler as UptimeLSTM
 
 def FetchData(startdate, enddate, fk_m_firewall=None):
@@ -243,11 +244,22 @@ def FetchData(startdate, enddate, fk_m_firewall=None):
                 FROM tbl_t_firewall_capacity_optimisation
                 WHERE created_at 
                 {date_filter}
-                {fw_filter}
+                and fk_m_firewall = 2
                 ORDER BY created_at ASC
             """
             cursor.execute(capacity_optimisation_query)
             capacity_optimisation = cursor.fetchall()
+
+            hotfix_query = f"""
+                SELECT DISTINCT fw_kernel, fw_build_number
+                FROM tbl_t_firewall_hotfix
+                WHERE created_at 
+                {date_filter}
+                {fw_filter}
+            """
+            cursor.execute(hotfix_query)
+            hotfix = cursor.fetchall()
+            
                 
         except Exception as e:
             print(f"Query execution error: {str(e)}")
@@ -261,7 +273,7 @@ def FetchData(startdate, enddate, fk_m_firewall=None):
                 print(f"Error closing database connection: {str(close_err)}")
         
         # Return the fetched data
-        return counted_rows, current_status, uptime, memory, storage, cpu, network, failed_alloc,raid, capacity_optimisation
+        return counted_rows, current_status, uptime, memory, storage, cpu, network, failed_alloc,raid, capacity_optimisation,hotfix
     
     except Exception as e:
         print(f"Unexpected error in FetchData: {str(e)}")
@@ -323,11 +335,8 @@ def ExportToPDF(
             print(f"Error report generated: {filename}")
             return filename
         
-        counted_rows, current_status, uptime, memory, storage, cpu, network, failed_alloc, raid, capacity  = data_result
-        # Unpack the data if no error occurred
-        print ("capacity: ")
-        print (capacity)
-        # Check if any required data is missing
+        counted_rows, current_status, uptime, memory, storage, cpu, network, failed_alloc, raid, capacity, hotfix  = data_result
+
         if not counted_rows or not current_status:
             # Create a warning report if data is incomplete
             doc = SimpleDocTemplate(filename, pagesize=letter)
@@ -454,6 +463,9 @@ def ExportToPDF(
             if capacity:
                 elements = CapacityOptimisation(elements= elements, capacity_data=capacity)
             
+            if hotfix:
+                elements = Hotfix(elements=elements, hotfix_data= hotfix)
+
             doc.build(elements)
             print(f"PDF successfully created: {filename}")
             return filename
