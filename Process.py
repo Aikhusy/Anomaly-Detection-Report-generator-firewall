@@ -21,13 +21,14 @@ from FailedAllocation.FailedMemoryAllocationAnalysis import GlobalHandler as Fai
 from Raid.RaidAnalysis import GlobalRAIDHandler as RaidAnalysis
 from Capacity.CapacityOptimisation import GlobalHandler as CapacityOptimisation
 from Hotfix.Hotfix import HotfixAnalysisHandler as Hotfix
-# from UptimeAnomalyLSTM import GlobalHandler as UptimeLSTM
+from LogManagement import tulis_log
 
 def FetchData(startdate, enddate, fk_m_firewall=None):
     try:
         conn = Connect()
         if isinstance(conn, str):
             print(f"Connection error: {conn}")
+            
             return {"error": f"Database connection failed: {conn}"}, None, None, None, None
         
         cursor = conn.cursor()
@@ -262,14 +263,17 @@ def FetchData(startdate, enddate, fk_m_firewall=None):
             
                 
         except Exception as e:
+            tulis_log(f"Query execution error: {str(e)}",'error')
             print(f"Query execution error: {str(e)}")
             return {"error": f"Query execution failed: {str(e)}"}, None, None, None, None
         finally:
             # Ensure connection is closed regardless of success or exception
             try:
                 conn.close()
+                tulis_log("Database connection closed successfully",'info')
                 print("Database connection closed successfully")
             except Exception as close_err:
+                tulis_log(f"Error closing database connection: {str(close_err)}",'error')
                 print(f"Error closing database connection: {str(close_err)}")
         
         # Return the fetched data
@@ -277,6 +281,7 @@ def FetchData(startdate, enddate, fk_m_firewall=None):
     
     except Exception as e:
         print(f"Unexpected error in FetchData: {str(e)}")
+        tulis_log(f"Unexpected error in FetchData: {str(e)}",'error')
         return {"error": f"Data retrieval failed: {str(e)}"}, None, None, None, None
     
 def ExportToPDF(
@@ -311,6 +316,7 @@ def ExportToPDF(
         if isinstance(data_result[0], dict) and "error" in data_result[0]:
             error_message = data_result[0]["error"]
             print(f"Error: {error_message}")
+            tulis_log(f"Error: {error_message}",'error')
             
             # Create a simple error report if data fetching failed
             doc = SimpleDocTemplate(filename, pagesize=letter)
@@ -330,6 +336,7 @@ def ExportToPDF(
             # Build the error report document
             doc.build(elements)
             print(f"Error report generated: {filename}")
+            tulis_log(f"Error report generated: {filename}",'error')
             return filename
         
         counted_rows, current_status, uptime, memory, storage, cpu, network, failed_alloc, raid, capacity, hotfix  = data_result
@@ -367,6 +374,7 @@ def ExportToPDF(
             if uptime:
                 try:
                     dataAnomaly = UptimeAnomaly(uptime)
+                    
                     print(f"Found {len(dataAnomaly.get('anomalies', []))} anomalies")
                 except Exception as anomaly_err:
                     print(f"Warning: Failed to process uptime anomaly data: {str(anomaly_err)}")
@@ -378,6 +386,7 @@ def ExportToPDF(
             try:
                 elements = DocumentGeneral(elements, datass)
             except Exception as e:
+                tulis_log(f"Error generating report sections: {str(e)}",'error')
                 elements.append(Paragraph(f"Error generating report sections: {str(e)}", styleN))
             
             doc.build(elements)
@@ -439,12 +448,13 @@ def ExportToPDF(
                 elements = Hotfix(elements=elements, hotfix_data= hotfix)
 
             doc.build(elements)
+            tulis_log(f"PDF successfully created: {filename}",'info')
             print(f"PDF successfully created: {filename}")
             return filename
             
         except Exception as e:
             print(f"Error building PDF document: {str(e)}")
-            
+            tulis_log(f"Error building PDF document: {str(e)}",'error')
             # Create a simpler error report if PDF generation fails
             error_doc = SimpleDocTemplate(filename, pagesize=letter)
             error_elements = []
@@ -455,9 +465,11 @@ def ExportToPDF(
             
             error_doc.build(error_elements)
             print(f"Error report generated: {filename}")
+            tulis_log(f"Error report generated: {filename}",'info')
             return filename
             
     except Exception as e:
+        tulis_log(f"Unexpected error in ExportToPDF: {str(e)}",'error')
         print(f"Unexpected error in ExportToPDF: {str(e)}")
         
         # Create a very basic error document as a last resort
@@ -471,6 +483,7 @@ def ExportToPDF(
             
             doc.build(elements)
         except:
+            tulis_log(f"Failed to create even an error report. Critical failure.",'error')
             print(f"Failed to create even an error report. Critical failure.")
         
         return filename
