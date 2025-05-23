@@ -161,36 +161,6 @@ def create_hotfix_table(elements, df_hotfix):
     
     return elements
 
-def add_chart_to_pdf(elements, img_data):
-    page_width, _ = A4
-    
-    # Buat judul untuk chart
-    chart_title = ParagraphStyle(
-        name='ChartTitle',
-        parent=getSampleStyleSheet()['Heading2'],
-        fontSize=12,
-        alignment=1,
-    )
-    elements.append(Paragraph("Visualisasi Distribusi Versi Firewall", chart_title))
-    elements.append(Spacer(1, 12))
-    
-    # Tambahkan gambar
-    img = Image(img_data, width=page_width*0.75, height=page_width*0.5)
-    elements.append(img)
-    elements.append(Spacer(1, 12))
-    
-    # Tambahkan catatan tentang visualisasi
-    note_style = ParagraphStyle(
-        name='NoteStyle',
-        parent=getSampleStyleSheet()['Italic'],
-        fontSize=9,
-        alignment=1,
-    )
-    note_text = "Catatan: Gambar di atas menunjukkan distribusi versi firewall berdasarkan kombinasi kernel dan build number."
-    elements.append(Paragraph(note_text, note_style))
-    
-    return elements
-
 def process_hotfix_recommendations(elements, df_hotfix):
 
     styles = getSampleStyleSheet()
@@ -257,16 +227,14 @@ def HotfixAnalysisHandler(elements,hotfix_data):
     try:
         # Proses data hotfix
         img_data, df_hotfix = analyze_hotfix_data(hotfix_data)
-        
+
+        elements.append(PageBreak())
         # Buat tabel analisis hotfix
         elements = create_hotfix_table(elements, df_hotfix)
         
         # Tambahkan page break
         elements.append(PageBreak())
-        
-        # Tambahkan visualisasi
-        elements = add_chart_to_pdf(elements, img_data)
-        
+                
         # Tambahkan rekomendasi
         elements = process_hotfix_recommendations(elements, df_hotfix)
         

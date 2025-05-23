@@ -291,7 +291,7 @@ def StorageConclusionTable(elements, df_storage):
         # Create table style
         def create_table(data):
             if len(data[0]) == 1:
-                col_widths = [page_width * 0.7]
+                col_widths = [page_width * 0.2, page_width * 0.5]
             else:
                 col_widths = [page_width * 0.2, page_width * 0.5]
             

@@ -358,10 +358,7 @@ def NetworkChangesTable(elements, changes):
     
     return elements
 
-def NetworkInterfaceSummaryTable(elements, df):
-    """
-    Create a summary table of all network interfaces
-    """
+def NetworkInterfaceSummaryTables(elements, df):
     styles = getSampleStyleSheet()
     page_width, _ = A4
     
@@ -401,12 +398,60 @@ def NetworkInterfaceSummaryTable(elements, df):
             'tx_drop_rate': tx_drop_rate
         })
     
-    # Create table data
-    title_row = ["Ringkasan Interface Network"]
-    data = [title_row]
-    data.append(["Interface", "IP Address", "MAC Address", "Total RX (GB)", "Total TX (GB)", "Error Rate", "Status"])
+    # ------ TABLE 1: Interface Identification ------
+    elements.append(Paragraph("Identifikasi Interface", styles['Heading2']))
+    elements.append(Spacer(1, 6))
     
-    # Add data rows
+    id_data = [["Interface", "IP Address", "MAC Address"]]
+    
+    # Add data rows for identification table
+    for item in interface_summary:
+        id_data.append([
+            item['interface'],
+            str(item['inet_addr']) if not pd.isna(item['inet_addr']) else "N/A",
+            str(item['hwaddr']) if not pd.isna(item['hwaddr']) else "N/A"
+        ])
+    
+    # Create the identification table
+    id_col_widths = [
+        page_width * 0.2,   # Interface
+        page_width * 0.25,  # IP Address
+        page_width * 0.35   # MAC Address
+    ]
+    
+    id_table = Table(id_data, colWidths=id_col_widths, hAlign='LEFT')
+    
+    # Style the identification table
+    id_style = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 1), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+    ]
+    
+    # Add conditional formatting - highlight down interfaces
+    for i in range(1, len(id_data)):
+        if pd.isna(interface_summary[i-1]['inet_addr']) or interface_summary[i-1]['inet_addr'] == '':
+            id_style.append(('BACKGROUND', (0, i), (-1, i), colors.lightgrey))
+    
+    id_table.setStyle(TableStyle(id_style))
+    elements.append(id_table)
+    elements.append(Spacer(1, 15))
+    
+    # ------ TABLE 2: Performance Data ------
+    elements.append(Paragraph("Kinerja Interface", styles['Heading2']))
+    elements.append(Spacer(1, 6))
+    
+    perf_data = [["Interface", "Total RX (GB)", "Total TX (GB)", "Error Rate", "Status"]]
+    
+    # Add data rows for performance table
     for item in interface_summary:
         # Determine status based on error and drop rates
         status = "OK"
@@ -419,58 +464,50 @@ def NetworkInterfaceSummaryTable(elements, df):
         if pd.isna(item['inet_addr']) or item['inet_addr'] == '':
             status = "DOWN / TIDAK AKTIF"
         
-        data.append([
+        perf_data.append([
             item['interface'],
-            str(item['inet_addr']) if not pd.isna(item['inet_addr']) else "N/A",
-            str(item['hwaddr']) if not pd.isna(item['hwaddr']) else "N/A",
             f"{item['rx_gb']:.2f}",
             f"{item['tx_gb']:.2f}",
             f"{max(item['rx_error_rate'], item['tx_error_rate']):.2f}%",
             status
         ])
     
-    # Create the table
-    col_widths = [
-        page_width * 0.12,  # Interface
-        page_width * 0.15,  # IP
-        page_width * 0.18,  # MAC
-        page_width * 0.12,  # RX
-        page_width * 0.12,  # TX
-        page_width * 0.12,  # Error Rate
-        page_width * 0.15   # Status
+    # Create the performance table
+    perf_col_widths = [
+        page_width * 0.13,  # Interface
+        page_width * 0.15,  # RX
+        page_width * 0.15,  # TX
+        page_width * 0.15,  # Error Rate
+        page_width * 0.10   # Status
     ]
     
-    table = Table(data, colWidths=col_widths, hAlign='LEFT')
+    perf_table = Table(perf_data, colWidths=perf_col_widths, hAlign='LEFT')
     
-    # Style the table
-    style = [
-        ('SPAN', (0, 0), (-1, 0)),
+    # Style the performance table
+    perf_style = [
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BACKGROUND', (0, 1), (-1, 1), colors.lightgrey),
-        ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
-        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 1), (-1, 1), 9),
-        ('FONTNAME', (0, 2), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 2), (-1, -1), 9),
-        ('ALIGN', (0, 2), (0, -1), 'LEFT'),
-        ('ALIGN', (1, 2), (-1, -1), 'LEFT'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+        ('ALIGN', (1, 1), (3, -1), 'RIGHT'),
+        ('ALIGN', (4, 1), (4, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 1), (-1, -1), 1, colors.black),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]
     
     # Add conditional formatting - highlight problem rows
-    for i in range(2, len(data)):
-        if "PERHATIAN" in data[i][-1]:
-            style.append(('BACKGROUND', (0, i), (-1, i), colors.lightpink))
-        elif "DOWN" in data[i][-1]:
-            style.append(('BACKGROUND', (0, i), (-1, i), colors.lightgrey))
+    for i in range(1, len(perf_data)):
+        if "PERHATIAN" in perf_data[i][-1]:
+            perf_style.append(('BACKGROUND', (0, i), (-1, i), colors.lightpink))
+        elif "DOWN" in perf_data[i][-1]:
+            perf_style.append(('BACKGROUND', (0, i), (-1, i), colors.lightgrey))
     
-    table.setStyle(TableStyle(style))
-    elements.append(table)
+    perf_table.setStyle(TableStyle(perf_style))
+    elements.append(perf_table)
     elements.append(Spacer(1, 15))
     
     return elements
@@ -737,7 +774,7 @@ def GlobalHandler(elements, network_data):
             elements.append(PageBreak())
             
             # Tambahkan ringkasan interface network
-            elements = NetworkInterfaceSummaryTable(elements, df)
+            elements = NetworkInterfaceSummaryTables(elements, df)
             
             # Tambahkan plot traffic interface
             elements.append(PageBreak())

@@ -286,15 +286,6 @@ def plot_allocation_distribution(df_alloc):
     return img_data
 
 def process_memory_allocation_data(alloc_data):
-    """
-    Process memory allocation data from the input dataset.
-    
-    Args:
-        alloc_data: List of memory allocation data rows
-        
-    Returns:
-        tuple: (stats_image, distribution_image, DataFrame)
-    """
     import pandas as pd
     import numpy as np
     import time
@@ -411,7 +402,7 @@ def allocation_conclusion_table(elements, df_alloc):
     
     def create_table(data):
         if len(data[0]) == 1:
-            col_widths = [page_width * 0.8]
+            col_widths = [page_width * 0.3, page_width * 0.5]
         else:
             col_widths = [page_width * 0.3, page_width * 0.5]
 

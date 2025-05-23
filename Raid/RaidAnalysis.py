@@ -79,7 +79,7 @@ def RAIDAnalysisTable(elements, df):
     # Create and style tables
     def create_table(data):
         if len(data[0]) == 1:
-            col_widths = [page_width * 0.8]
+            col_widths = [page_width * 0.2, page_width * 0.6]
         else:
             col_widths = [page_width * 0.2, page_width * 0.6]
 
@@ -243,6 +243,7 @@ def GlobalRAIDHandler(elements, raid_data):
         df = ProcessRAIDData(raid_data)
         
         if df is not None:
+            elements.append(PageBreak())
             elements = Title(elements, "Analisis Sistem RAID")
             elements.append(Spacer(1, 10))
             

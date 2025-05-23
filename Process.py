@@ -282,14 +282,11 @@ def FetchData(startdate, enddate, fk_m_firewall=None):
 def ExportToPDF(
     filename="firewall_report.pdf", 
     report_time=None,
-    firewall_id=None,
-    site_name="BRCG01",
     start_date="2025-01-01",
     end_date=None,
     month=None,
     year=None,
     logo_path="logo.png",
-    record_limit=200
 ):
 
     try:
@@ -376,21 +373,9 @@ def ExportToPDF(
                     dataAnomaly = None
             else:
                 dataAnomaly = None
+        
             
-            inputs = {
-                "sitename": site_name,
-                "startdate": start_date,
-                "enddate": end_date,
-                "exportdate": report_time.strftime("%Y-%m-%d"),
-                "totalfw": len(counted_rows) if counted_rows else 0,
-                "month": month,
-                "year": year,
-                "image_path": logo_path
-            }
-            
-            # Add available data sections
             try:
-                elements = DocumentHeader(elements, inputs)
                 elements = DocumentGeneral(elements, datass)
             except Exception as e:
                 elements.append(Paragraph(f"Error generating report sections: {str(e)}", styleN))
@@ -399,7 +384,6 @@ def ExportToPDF(
             print(f"Partial report generated with warnings: {filename}")
             return filename
         
-        # Process the data for the report if everything is available
         datass = {
             "counted_rows": counted_rows,
             "current_status": current_status
@@ -421,22 +405,10 @@ def ExportToPDF(
         styleH1 = styles["Heading1"]
         styleH2 = styles["Heading2"]
         
-        # Count total firewalls from current_status data
         total_firewalls = len(set([status[0] for status in current_status])) if current_status else 0
-        
-        inputs = {
-            "sitename": site_name,
-            "startdate": start_date,
-            "enddate": end_date,
-            "exportdate": report_time.strftime("%Y-%m-%d"),
-            "totalfw": total_firewalls,
-            "month": month,
-            "year": year,
-            "image_path": logo_path
-        }
+
         
         try:
-            elements = DocumentHeader(elements, inputs)
             elements = DocumentGeneral(elements, datass)
             
             if uptime:
