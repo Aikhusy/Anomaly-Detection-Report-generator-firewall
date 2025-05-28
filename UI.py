@@ -361,6 +361,7 @@ class DatabaseConnectionManager:
         status_window = FirewallStatusWindow(self.root, self.db_connections[self.selected_index], self.selected_index)
         status_window.show()
 
+from Process import ExportToPDF as ExportToPdf
 class FirewallStatusWindow:
     def __init__(self, parent, connection_data, connection_index):
         self.parent = parent
@@ -382,7 +383,6 @@ class FirewallStatusWindow:
         self.load_data()
         
     def setup_ui(self):
-        """Setup the UI for status window"""
         # Header frame
         header_frame = ttk.Frame(self.window, padding="10")
         header_frame.pack(fill=tk.X)
@@ -557,9 +557,16 @@ class FirewallStatusWindow:
             
             with open(filename, 'w') as f:
                 json.dump(export_data, f, indent=4, ensure_ascii=False)
-            
+
+            ExportToPdf(
+                report_time=datetime.now(),
+                start_date="2025-01-01",
+                end_date=datetime.now().strftime("%Y-%m-%d"),
+                connection_data=self.connection_data
+            )
+
             messagebox.showinfo("Export Success", f"Data exported to {filename}")
-            self.status_var.set(f"Data exported to {filename}")
+            self.status_var.set(f"Data exported to {filename}")            
             
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to export data: {str(e)}")

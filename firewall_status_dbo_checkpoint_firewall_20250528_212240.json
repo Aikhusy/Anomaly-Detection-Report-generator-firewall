@@ -1,0 +1,59 @@
+{
+    "database": "dbo_checkpoint_firewall",
+    "server": "DESKTOP-OCM4CG8",
+    "export_time": "2025-05-28 21:22:40",
+    "connection_index": 0,
+    "columns": [
+        "fw_name",
+        "uptime",
+        "fwtmp",
+        "varloglog",
+        "ram",
+        "swap",
+        "memory_error",
+        "cpu",
+        "rx_error_total",
+        "tx_error_total",
+        "sync_mode",
+        "sync_state",
+        "license_expiration_status",
+        "raid_state",
+        "hotfix_module"
+    ],
+    "data": [
+        [
+            "FW-JIEP03",
+            "80 days 22 Hours 55 minutes ",
+            31,
+            6,
+            "12.188",
+            "0.0",
+            "0.0",
+            0,
+            0,
+            0,
+            "Ha Module Not Started",
+            "-",
+            " 27Dec2022 27Dec2024 ",
+            "DEGRADED",
+            "R81.20"
+        ],
+        [
+            "CILEFWNS622",
+            "47 days 0 Hours 26 minutes ",
+            8,
+            7,
+            "38.451",
+            "0.0",
+            "0.0",
+            0,
+            0,
+            0,
+            "Ha Module Not Started",
+            "-",
+            " 27Dec2024 ",
+            "Can't find state",
+            "R81.10.10"
+        ]
+    ]
+}

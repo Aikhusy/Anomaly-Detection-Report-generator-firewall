@@ -22,14 +22,26 @@ from Raid.RaidAnalysis import GlobalRAIDHandler as RaidAnalysis
 from Capacity.CapacityOptimisation import GlobalHandler as CapacityOptimisation
 from Hotfix.Hotfix import HotfixAnalysisHandler as Hotfix
 from LogManagement import tulis_log
+import pyodbc
 
-def FetchData(startdate, enddate, fk_m_firewall=None):
+def build_connection_string(conn_data):
+    conn_str_parts = []
+    
+    for key, value in conn_data.items():
+        if value:  
+            conn_str_parts.append(f"{key}={value}")
+    
+    return ";".join(conn_str_parts)
+
+def FetchData(connection_data, startdate, enddate, fk_m_firewall=None):
     try:
-        conn = Connect()
+        conn_str = build_connection_string(connection_data)
+        conn = pyodbc.connect(conn_str, timeout=10)
+
         if isinstance(conn, str):
             print(f"Connection error: {conn}")
             
-            return {"error": f"Database connection failed: {conn}"}, None, None, None, None
+            return {"error": f"Database connection failed: {conn}"}
         
         cursor = conn.cursor()
         
@@ -291,26 +303,23 @@ def ExportToPDF(
     end_date=None,
     month=None,
     year=None,
-    logo_path="logo.png",
+    connection_data=None
 ):
-
     try:
-        # Set default report time if not provided
         if report_time is None:
             report_time = datetime.datetime.now()
-            
-        # Set default end date if not provided
         if end_date is None:
             end_date = report_time.strftime("%Y-%m-%d")
-            
-        # Set default month and year if not provided
         if month is None:
             month = report_time.strftime("%B")
         if year is None:
             year = report_time.strftime("%Y")
-            
-        # Get data from database with custom firewall filter
-        data_result = FetchData('2024-04-01', '2025-04-14', 1)
+
+        # Contoh penggunaan connection_data jika dibutuhkan
+        if connection_data:
+            print("Export from:", connection_data['Server'], connection_data['Database'])
+
+        data_result = FetchData(connection_data=connection_data,startdate='2024-04-01', enddate='2025-04-14', fk_m_firewall=1)
         
         # Check if an error occurred during data fetching
         if isinstance(data_result[0], dict) and "error" in data_result[0]:
